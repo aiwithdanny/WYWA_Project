@@ -1,12 +1,14 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import fetchAPI from '@/lib/api'
 
-const stats = [
-  { num: 12000, suffix: '+', label: 'Beneficiaries Reached', icon: '👥', color: '#1A4A8A' },
-  { num: 320,   suffix: '+', label: 'Scholarships Awarded',  icon: '🎓', color: '#C8A84B' },
-  { num: 60,    suffix: '+', label: 'Wells & Water Points',  icon: '💧', color: '#2da86a' },
-  { num: 45,    suffix: '+', label: 'Active Programs',       icon: '📋', color: '#e0722a' },
-]
+interface StatItem {
+  num: number
+  suffix: string
+  label: string
+  icon: string
+  color: string
+}
 
 function CountUp({ target }: { target: number }) {
   const ref = useRef<HTMLSpanElement>(null)
@@ -37,6 +39,26 @@ function CountUp({ target }: { target: number }) {
 }
 
 export default function Stats() {
+  const [stats, setStats] = useState<StatItem[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchAPI('/api/stats')
+      .then(data => {
+        if (data.stats) {
+          const s = data.stats
+          setStats([
+            { num: s.beneficiaries || 0, suffix: '+', label: 'Beneficiaries Reached', icon: '👥', color: '#1A4A8A' },
+            { num: s.newsArticles || 0, suffix: '+', label: 'News Articles', icon: '📰', color: '#C8A84B' },
+            { num: s.teamMembers || 0, suffix: '+', label: 'Team Members', icon: '💧', color: '#2da86a' },
+            { num: s.activePrograms || 0, suffix: '+', label: 'Active Programs', icon: '📋', color: '#e0722a' },
+          ])
+        }
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
   return (
     <section className="bg-white py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -56,28 +78,36 @@ export default function Stats() {
             community transformed by collective action.
           </p>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {stats.map((stat, i) => (
-            <div key={i}
-              className="bg-[#F8F9FC] rounded-2xl p-8 text-center
-                hover:-translate-y-2 transition-all duration-300
-                hover:shadow-xl cursor-default"
-              style={{ borderBottom: `4px solid ${stat.color}` }}>
-              <div className="text-4xl mb-4">{stat.icon}</div>
-              <div className="flex items-end justify-center gap-1 mb-2">
-                <span className="text-4xl md:text-5xl font-bold text-[#0A1628]"
-                  style={{ fontFamily: 'Playfair Display, serif' }}>
-                  <CountUp target={stat.num} />
-                </span>
-                <span className="text-2xl font-bold mb-1"
-                  style={{ color: stat.color }}>
-                  {stat.suffix}
-                </span>
+        {loading ? (
+          <div className="flex items-center justify-center py-10">
+            <div className="animate-spin w-8 h-8 border-4 border-[#1A4A8A] border-t-transparent rounded-full" />
+          </div>
+        ) : stats.length === 0 ? (
+          <div className="text-center text-[#6B7A99] py-10">Loading stats...</div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {stats.map((stat, i) => (
+              <div key={i}
+                className="bg-[#F8F9FC] rounded-2xl p-8 text-center
+                  hover:-translate-y-2 transition-all duration-300
+                  hover:shadow-xl cursor-default"
+                style={{ borderBottom: `4px solid ${stat.color}` }}>
+                <div className="text-4xl mb-4">{stat.icon}</div>
+                <div className="flex items-end justify-center gap-1 mb-2">
+                  <span className="text-4xl md:text-5xl font-bold text-[#0A1628]"
+                    style={{ fontFamily: 'Playfair Display, serif' }}>
+                    <CountUp target={stat.num} />
+                  </span>
+                  <span className="text-2xl font-bold mb-1"
+                    style={{ color: stat.color }}>
+                    {stat.suffix}
+                  </span>
+                </div>
+                <p className="text-sm text-[#6B7A99] font-medium">{stat.label}</p>
               </div>
-              <p className="text-sm text-[#6B7A99] font-medium">{stat.label}</p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   )

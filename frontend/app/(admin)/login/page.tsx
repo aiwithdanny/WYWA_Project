@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { authAPI } from '@/lib/api'
 
 export default function AdminLoginPage() {
   const router = useRouter()
@@ -14,21 +15,14 @@ export default function AdminLoginPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('http://localhost:8000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      })
-      const data = await res.json()
-      if (!res.ok) {
+      const data = await authAPI.login(form.email, form.password)
+      if (!data.token) {
         setError(data.error || 'Invalid credentials')
         return
       }
-      localStorage.setItem('wywa_token', data.token)
-      localStorage.setItem('wywa_user', JSON.stringify(data.user))
       router.push('/dashboard')
-    } catch (err) {
-      setError('Connection failed. Make sure backend is running.')
+    } catch (err: any) {
+      setError(err.message || 'Connection failed. Make sure backend is running.')
     } finally {
       setLoading(false)
     }

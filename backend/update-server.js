@@ -1,15 +1,14 @@
-const express = require('express')
+const fs = require('fs')
+
+const code = `const express = require('express')
 const cors = require('cors')
 const helmet = require('helmet')
 const morgan = require('morgan')
 const dotenv = require('dotenv')
-const path = require('path')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
-const multer = require('multer')
-const { uploadToCloudinary } = require('./utils/cloudinary')
 
-dotenv.config({ path: path.resolve(__dirname, '.env') })
+dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 8000
@@ -20,24 +19,14 @@ let prisma = null
 try {
   const { PrismaClient } = require('@prisma/client')
   prisma = new PrismaClient({ log: ['error'] })
-  console.log('📦 Prisma client initialized')
+  console.log('\\uD83D\\uDCE6 Prisma client initialized')
 } catch (e) {
-  console.log('⚠️ Prisma not available')
+  console.log('\\u26A0\\uFE0F Prisma not available')
   process.exit(1)
 }
 
-// Test connection on startup
-prisma.$connect()
-  .then(() => console.log('✅ Database connected successfully'))
-  .catch((err) => console.error('❌ Database connection failed:', err))
-
-// Graceful shutdown
-process.on('beforeExit', async () => {
-  await prisma.$disconnect()
-})
-
 // ─── HELPERS ───
-const generateId = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+const generateId = (prefix) => \`\${prefix}-\${Date.now()}-\${Math.random().toString(36).slice(2, 7)}\`
 
 const protect = async (req, res, next) => {
   try {
@@ -65,56 +54,22 @@ const restrictTo = (...roles) => (req, res, next) => {
 // ─── MIDDLEWARE ───
 app.use(helmet())
 app.use(cors({
-  origin: function(origin, callback) {
-    const allowed = [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'https://wywa.vercel.app',
-      process.env.FRONTEND_URL,
-      process.env.CORS_ORIGIN,
-      process.env.NEXTAUTH_URL,
-    ].filter(Boolean)
-    if (!origin || allowed.includes(origin) || allowed.some(a => origin?.startsWith(a))) {
-      callback(null, true)
-    } else {
-      callback(null, true) // Allow all for development
-    }
-  },
+  origin: process.env.CORS_ORIGIN || process.env.NEXTAUTH_URL || 'http://localhost:3000',
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
 }))
 app.use(morgan('dev'))
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 
-// ─── MULTER CONFIG ───
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } })
-
 // ─── HEALTH CHECK ───
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
-    message: '\uD83D\uDE80 WYWA API is running!',
+    message: '\\uD83D\\uDE80 WYWA API is running!',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
     prisma: !!prisma,
   })
-})
-
-// ═══════════════════════════════════════════════════════════════
-// UPLOAD
-// ═══════════════════════════════════════════════════════════════
-app.post('/api/upload', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), upload.single('image'), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ status: 'fail', message: 'No image file provided' })
-    const folder = req.body.folder || 'wywa/general'
-    const result = await uploadToCloudinary(req.file.buffer, folder)
-    res.json({ status: 'success', url: result.secure_url, publicId: result.public_id })
-  } catch (err) {
-    console.error('Cloudinary upload error:', err)
-    res.status(500).json({ status: 'error', message: 'Image upload failed' })
-  }
 })
 
 // ═══════════════════════════════════════════════════════════════
@@ -190,6 +145,7 @@ app.delete('/api/programs/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), as
 // ═══════════════════════════════════════════════════════════════
 app.get('/api/events', async (req, res) => {
   const where = {}
+  if (req.query.type) where.type = req.query.type
   if (req.query.upcoming === 'true') where.date = { gte: new Date() }
   if (req.query.isPublished === 'true') where.isPublished = true
   const events = await prisma.event.findMany({ where, orderBy: { date: 'asc' } })
@@ -206,15 +162,16 @@ app.get('/api/events/:id', async (req, res) => {
 })
 
 app.post('/api/events', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
-  const { title, slug, description, date, location, isPublished } = req.body
+  const { title, slug, description, date, location, type, isPublished } = req.body
   if (!title || !date) return res.status(400).json({ status: 'fail', message: 'Title and date required' })
   const event = await prisma.event.create({
     data: {
       title,
-      slug: slug || title.toLowerCase().replace(/\s+/g, '-'),
+      slug: slug || title.toLowerCase().replace(/\\s+/g, '-'),
       description: description || '',
       date: new Date(date),
       location: location || '',
+      type: type || 'Other',
       isPublished: isPublished !== undefined ? isPublished : true,
     }
   })
@@ -279,7 +236,7 @@ app.post('/api/news', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, 
   const article = await prisma.news.create({
     data: {
       title,
-      slug: slug || title.toLowerCase().replace(/\s+/g, '-'),
+      slug: slug || title.toLowerCase().replace(/\\s+/g, '-'),
       excerpt: excerpt || '',
       body,
       category: category || 'GENERAL',
@@ -515,7 +472,7 @@ app.post('/api/donations/initiate', async (req, res) => {
       campaign: campaign || 'General Fund',
       paymentMethod: paymentMethod || 'BANK_TRANSFER',
       status: 'PENDING',
-      paymentRef: `WYWA-${Date.now()}`,
+      paymentRef: \`WYWA-\${Date.now()}\`,
       message: message || '',
       isAnonymous: !!isAnonymous,
       receiptSent: false,
@@ -614,39 +571,25 @@ app.delete('/api/reports/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), asy
 // SETTINGS
 // ═══════════════════════════════════════════════════════════════
 app.get('/api/settings', async (req, res) => {
-  try {
-    const settings = await prisma.siteSetting.findMany()
-    const formatted = {}
-    settings.forEach(s => {
-      try {
-        formatted[s.key] = JSON.parse(s.value)
-      } catch {
-        formatted[s.key] = s.value
-      }
-    })
-    res.json({ settings: formatted })
-  } catch (error) {
-    console.error('Settings fetch error:', error)
-    res.status(500).json({ error: 'Failed to fetch settings' })
-  }
+  const settings = await prisma.siteSetting.findMany()
+  const result = {}
+  settings.forEach(s => { result[s.key] = s.value })
+  res.json({ settings: result })
 })
 
 app.put('/api/settings', protect, restrictTo('SUPER_ADMIN'), async (req, res) => {
-  try {
-    const updates = req.body
-    const promises = Object.entries(updates).map(([key, value]) =>
-      prisma.siteSetting.upsert({
-        where: { key },
-        update: { value: JSON.stringify(value) },
-        create: { key, value: JSON.stringify(value), group: 'general' }
-      })
-    )
-    await Promise.all(promises)
-    res.json({ status: 'success', message: 'Settings saved successfully!' })
-  } catch (error) {
-    console.error('Settings save error:', error)
-    res.status(500).json({ error: 'Failed to save settings' })
+  const data = req.body
+  for (const key of Object.keys(data)) {
+    await prisma.siteSetting.upsert({
+      where: { key },
+      update: { value: data[key] },
+      create: { key, value: data[key], group: 'general' }
+    })
   }
+  const settings = await prisma.siteSetting.findMany()
+  const result = {}
+  settings.forEach(s => { result[s.key] = s.value })
+  res.json({ status: 'success', settings: result })
 })
 
 // ═══════════════════════════════════════════════════════════════
@@ -696,7 +639,7 @@ app.delete('/api/users/:id', protect, restrictTo('SUPER_ADMIN'), async (req, res
 // ═══════════════════════════════════════════════════════════════
 // STATS / DASHBOARD
 // ═══════════════════════════════════════════════════════════════
-app.get('/api/stats', async (req, res) => {
+app.get('/api/stats', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
   const [programStats, donationAgg, volunteerStats, messageStats, eventStats, newsCount, teamCount, galleryCount, newsletterCount] = await Promise.all([
     prisma.program.findMany({ select: { beneficiaries: true, status: true } }),
     prisma.donation.aggregate({ _sum: { amount: true }, _count: true }),
@@ -731,7 +674,7 @@ app.get('/api/stats', async (req, res) => {
 // 404 & ERROR HANDLERS
 // ═══════════════════════════════════════════════════════════════
 app.use('*', (req, res) => {
-  res.status(404).json({ status: 'fail', message: `Cannot find ${req.originalUrl}` })
+  res.status(404).json({ status: 'fail', message: \`Cannot find \${req.originalUrl}\` })
 })
 
 app.use((err, req, res, next) => {
@@ -743,8 +686,12 @@ app.use((err, req, res, next) => {
 })
 
 app.listen(PORT, () => {
-  console.log(`\uD83D\uDE80 WYWA API running on http://localhost:${PORT}`)
-  console.log(`\uD83D\uDCE6 Prisma: connected`)
+  console.log(\`\\uD83D\\uDE80 WYWA API running on http://localhost:\${PORT}\`)
+  console.log(\`\\uD83D\\uDCE6 Prisma: connected\`)
 })
 
 module.exports = app
+`
+
+fs.writeFileSync('backend/server.js', code)
+console.log('backend/server.js updated successfully')

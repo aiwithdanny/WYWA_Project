@@ -1,48 +1,97 @@
 'use client'
-import { useState } from 'react'
-
-const initialPrograms = [
-  { id: 1, title: 'WYWA Scholarship Fund', category: 'Education', status: 'Published', beneficiaries: 320, date: '2024-01-15' },
-  { id: 2, title: 'Skills & Vocational Training', category: 'Livelihoods', status: 'Published', beneficiaries: 1200, date: '2024-02-01' },
-  { id: 3, title: 'Mobile Health Clinics', category: 'Health', status: 'Published', beneficiaries: 800, date: '2024-01-20' },
-  { id: 4, title: 'Flood & Disaster Relief', category: 'Relief', status: 'Published', beneficiaries: 5000, date: '2024-03-10' },
-  { id: 5, title: 'Youth Leadership Academy', category: 'Youth', status: 'Draft', beneficiaries: 180, date: '2024-04-01' },
-  { id: 6, title: 'Clean Water Initiative', category: 'Infrastructure', status: 'Published', beneficiaries: 3000, date: '2024-02-15' },
-]
+import { useState, useEffect } from 'react'
+import { programsAPI } from '@/lib/api'
+import ImageUpload from '@/components/admin/ImageUpload'
 
 export default function AdminProgramsPage() {
-  const [programs, setPrograms] = useState(initialPrograms)
+  const [programs, setPrograms] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [search, setSearch] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [newProgram, setNewProgram] = useState({
-    title: '', category: 'Education', status: 'Draft', beneficiaries: 0
+    title: '', slug: '', description: '', category: 'EDUCATION', status: 'DRAFT', beneficiaries: 0, location: '', startDate: '', imageUrl: ''
   })
 
-  const filtered = programs.filter(p =>
+  const fetchPrograms = async () => {
+    try {
+      const data = await programsAPI.getAll()
+      setPrograms(data.programs || [])
+    } catch (err: any) {
+      alert(err.message || 'Connection error — make sure backend is running on port 8000')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchPrograms()
+  }, [])
+
+  const filtered = programs.filter((p: any) =>
     p.title.toLowerCase().includes(search.toLowerCase())
   )
 
-  const handleAdd = () => {
-    setPrograms([...programs, {
-      id: programs.length + 1,
-      ...newProgram,
-      date: new Date().toISOString().split('T')[0]
-    }])
-    setShowForm(false)
-    setNewProgram({ title: '', category: 'Education', status: 'Draft', beneficiaries: 0 })
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      if (editingId) {
+        await programsAPI.update(editingId, newProgram)
+        await fetchPrograms()
+        setShowForm(false)
+        setEditingId(null)
+        setNewProgram({ title: '', slug: '', description: '', category: 'EDUCATION', status: 'DRAFT', beneficiaries: 0, location: '', startDate: '', imageUrl: '' })
+      } else {
+        await programsAPI.create(newProgram)
+        await fetchPrograms()
+        setShowForm(false)
+        setNewProgram({ title: '', slug: '', description: '', category: 'EDUCATION', status: 'DRAFT', beneficiaries: 0, location: '', startDate: '', imageUrl: '' })
+      }
+    } catch (err: any) {
+      alert(err.message || 'Connection error — make sure backend is running on port 8000')
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const handleDelete = (id: number) => {
-    setPrograms(programs.filter(p => p.id !== id))
+  const startEdit = (program: any) => {
+    setNewProgram({
+      title: program.title || '',
+      slug: program.slug || '',
+      description: program.description || '',
+      category: program.category || 'EDUCATION',
+      status: program.status || 'DRAFT',
+      beneficiaries: program.beneficiaries || 0,
+      location: program.location || '',
+      startDate: program.startDate ? program.startDate.split('T')[0] : '',
+      imageUrl: program.imageUrl || '',
+    })
+    setEditingId(program.id)
+    setShowForm(true)
   }
 
-  const toggleStatus = (id: number) => {
-    setPrograms(programs.map(p =>
-      p.id === id
-        ? { ...p, status: p.status === 'Published' ? 'Draft' : 'Published' }
-        : p
-    ))
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this program?')) return
+    try {
+      await programsAPI.delete(id)
+      await fetchPrograms()
+    } catch (err: any) {
+      alert(err.message || 'Connection error — make sure backend is running on port 8000')
+    }
   }
+
+  const toggleStatus = async (program: any) => {
+    const newStatus = program.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED'
+    try {
+      await programsAPI.update(program.id, { status: newStatus })
+      await fetchPrograms()
+    } catch (err: any) {
+      alert(err.message || 'Connection error — make sure backend is running on port 8000')
+    }
+  }
+
+  if (loading) return <div className="text-center py-20 text-[#6B7A99]">Loading programs...</div>
 
   return (
     <div className="flex flex-col gap-6">
@@ -70,7 +119,7 @@ export default function AdminProgramsPage() {
       {/* Add Form */}
       {showForm && (
         <div className="bg-white rounded-2xl p-6 border-2 border-[#1A4A8A]/20">
-          <h2 className="font-bold text-[#0A1628] mb-4">Add New Program</h2>
+          <h2 className="font-bold text-[#0A1628] mb-4">{editingId ? 'Edit Program' : 'Add New Program'}</h2>
           <div className="grid md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-xs font-medium text-[#3D4A63] mb-1">
@@ -93,23 +142,32 @@ export default function AdminProgramsPage() {
                 onChange={e => setNewProgram({...newProgram, category: e.target.value})}
                 className="w-full px-4 py-3 rounded-xl border border-[#EEF1F6]
                   text-sm focus:outline-none focus:border-[#1A4A8A] bg-[#F8F9FC]">
-                {['Education', 'Health', 'Relief', 'Youth', 'Infrastructure', 'Livelihoods'].map(c => (
-                  <option key={c}>{c}</option>
+                {['EDUCATION', 'HEALTH', 'DISASTER_RELIEF', 'YOUTH_EMPOWERMENT', 'INFRASTRUCTURE', 'COMMUNITY_DEVELOPMENT', 'OTHER'].map(c => (
+                  <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>
                 ))}
               </select>
             </div>
           </div>
+          <div className="grid md:grid-cols-2 gap-4 mb-4">
+            <input value={newProgram.slug} onChange={e => setNewProgram({...newProgram, slug: e.target.value})} placeholder="Slug (optional)" className="w-full px-4 py-3 rounded-xl border border-[#EEF1F6] text-sm bg-[#F8F9FC] focus:outline-none focus:border-[#1A4A8A]" />
+            <input type="number" value={newProgram.beneficiaries} onChange={e => setNewProgram({...newProgram, beneficiaries: parseInt(e.target.value) || 0})} placeholder="Beneficiaries" className="w-full px-4 py-3 rounded-xl border border-[#EEF1F6] text-sm bg-[#F8F9FC] focus:outline-none focus:border-[#1A4A8A]" />
+          </div>
+          <div className="grid md:grid-cols-2 gap-4 mb-4">
+            <input value={newProgram.location} onChange={e => setNewProgram({...newProgram, location: e.target.value})} placeholder="Location" className="w-full px-4 py-3 rounded-xl border border-[#EEF1F6] text-sm bg-[#F8F9FC] focus:outline-none focus:border-[#1A4A8A]" />
+            <input type="date" value={newProgram.startDate} onChange={e => setNewProgram({...newProgram, startDate: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-[#EEF1F6] text-sm bg-[#F8F9FC] focus:outline-none focus:border-[#1A4A8A]" />
+          </div>
+          <textarea value={newProgram.description} onChange={e => setNewProgram({...newProgram, description: e.target.value})} placeholder="Description" rows={3} className="w-full px-4 py-3 rounded-xl border border-[#EEF1F6] text-sm bg-[#F8F9FC] focus:outline-none focus:border-[#1A4A8A] resize-none mb-4" />
+          <div className="mb-4">
+            <ImageUpload
+              value={newProgram.imageUrl}
+              onChange={url => setNewProgram({...newProgram, imageUrl: url})}
+              folder="wywa/programs"
+              label="Program Image"
+            />
+          </div>
           <div className="flex gap-3">
-            <button onClick={handleAdd}
-              className="bg-[#2da86a] text-white px-5 py-2.5 rounded-xl
-                text-sm font-semibold hover:bg-[#1a6b42] transition-colors">
-              Save Program ✓
-            </button>
-            <button onClick={() => setShowForm(false)}
-              className="bg-[#F8F9FC] text-[#6B7A99] px-5 py-2.5 rounded-xl
-                text-sm font-semibold hover:bg-[#EEF1F6] transition-colors">
-              Cancel
-            </button>
+            <button onClick={handleSave} disabled={saving} className="bg-[#2da86a] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#1a6b42] transition-colors disabled:opacity-70">{saving ? 'Saving...' : editingId ? 'Update Program' : 'Save Program'} ✓</button>
+            <button onClick={() => { setShowForm(false); setEditingId(null); setNewProgram({ title: '', slug: '', description: '', category: 'EDUCATION', status: 'DRAFT', beneficiaries: 0, location: '', startDate: '', imageUrl: '' }) }} className="bg-[#F8F9FC] text-[#6B7A99] px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#EEF1F6] transition-colors">Cancel</button>
           </div>
         </div>
       )}
@@ -155,10 +213,10 @@ export default function AdminProgramsPage() {
                 </td>
                 <td className="px-6 py-4">
                   <button
-                    onClick={() => toggleStatus(program.id)}
+                    onClick={() => toggleStatus(program)}
                     className={`px-3 py-1 rounded-full text-xs font-semibold
                       cursor-pointer transition-colors
-                      ${program.status === 'Published'
+                      ${program.status === 'PUBLISHED'
                         ? 'bg-green-100 text-green-700 hover:bg-green-200'
                         : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
                       }`}>
@@ -169,11 +227,12 @@ export default function AdminProgramsPage() {
                   {program.beneficiaries.toLocaleString()}
                 </td>
                 <td className="px-6 py-4 text-sm text-[#6B7A99]">
-                  {program.date}
+                  {program.startDate || program.createdAt?.split('T')[0]}
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex gap-2">
-                    <button className="text-xs bg-[#EEF1F6] hover:bg-[#1A4A8A]
+                    <button onClick={() => startEdit(program)}
+                      className="text-xs bg-[#EEF1F6] hover:bg-[#1A4A8A]
                       hover:text-white text-[#3D4A63] px-3 py-1.5 rounded-lg
                       transition-colors font-medium">
                       Edit

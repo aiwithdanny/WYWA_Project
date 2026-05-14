@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import { messagesAPI } from '@/lib/api'
 
 export default function ContactPage() {
   const [form, setForm] = useState({
@@ -14,11 +15,7 @@ export default function ContactPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      await fetch('http://localhost:8000/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      })
+      await messagesAPI.send(form)
       setSubmitted(true)
     } catch (error) {
       setSubmitted(true)

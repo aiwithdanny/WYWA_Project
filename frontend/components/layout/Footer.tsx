@@ -1,7 +1,25 @@
+'use client'
+import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { newsletterAPI } from '@/lib/api'
 
 export default function Footer() {
+  const [email, setEmail] = useState('')
+  const [subscribed, setSubscribed] = useState(false)
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email) return
+    try {
+      await newsletterAPI.subscribe({ email })
+      setSubscribed(true)
+      setEmail('')
+    } catch {
+      alert('Subscription failed. Please try again.')
+    }
+  }
+
   return (
     <footer className="bg-[#0A1628] text-white/60 pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -40,6 +58,25 @@ export default function Footer() {
                   {s}
                 </a>
               ))}
+            </div>
+            <div className="mt-6">
+              <p className="text-xs text-white/40 mb-2 font-medium">Subscribe to our newsletter</p>
+              {subscribed ? (
+                <p className="text-sm text-[#2da86a]">Thanks for subscribing!</p>
+              ) : (
+                <form onSubmit={handleSubscribe} className="flex gap-2">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="Your email"
+                    className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#C8A84B]"
+                  />
+                  <button type="submit" className="px-4 py-2 rounded-lg bg-[#C8A84B] text-[#0A1628] text-xs font-semibold hover:bg-[#E8C96A] transition-colors">
+                    Subscribe
+                  </button>
+                </form>
+              )}
             </div>
           </div>
 

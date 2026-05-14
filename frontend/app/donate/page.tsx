@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import { donationsAPI } from '@/lib/api'
 
 const amounts = [500, 1000, 2500, 5000, 10000, 25000]
 const campaigns = [
@@ -11,6 +12,8 @@ const campaigns = [
 ]
 
 export default function DonatePage() {
+  const [name, setName]           = useState('')
+  const [email, setEmail]         = useState('')
   const [amount, setAmount]       = useState(1000)
   const [custom, setCustom]       = useState('')
   const [campaign, setCampaign]   = useState('General Fund')
@@ -20,18 +23,18 @@ export default function DonatePage() {
   const finalAmount = custom ? parseInt(custom) : amount
 
   const handleDonate = async () => {
+    if (!name || !email) {
+      alert('Please enter your name and email')
+      return
+    }
     setLoading(true)
     try {
-      await fetch('http://localhost:8000/api/donations/initiate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          donorName: 'Anonymous',
-          email: 'donor@example.com',
-          amount: finalAmount,
-          campaign,
-          currency: 'PKR',
-        }),
+      await donationsAPI.initiate({
+        donorName: name,
+        email,
+        amount: finalAmount,
+        campaign,
+        currency: 'PKR',
       })
       setSubmitted(true)
     } catch (error) {
@@ -89,6 +92,18 @@ export default function DonatePage() {
                       style={{ fontFamily: 'Playfair Display, serif' }}>
                       Choose Your Donation
                     </h2>
+
+                    {/* Name & Email */}
+                    <div className="grid md:grid-cols-2 gap-4 mb-6">
+                      <div>
+                        <label className="block text-sm font-semibold text-[#0A1628] mb-2">Full Name *</label>
+                        <input value={name} onChange={e => setName(e.target.value)} placeholder="Your full name" className="w-full px-4 py-3 rounded-xl border-2 border-[#EEF1F6] text-sm focus:outline-none focus:border-[#1A4A8A] transition-all" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-[#0A1628] mb-2">Email *</label>
+                        <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" className="w-full px-4 py-3 rounded-xl border-2 border-[#EEF1F6] text-sm focus:outline-none focus:border-[#1A4A8A] transition-all" />
+                      </div>
+                    </div>
 
                     {/* Amount */}
                     <div className="mb-6">

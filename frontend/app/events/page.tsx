@@ -1,69 +1,13 @@
 'use client'
+import { useState, useEffect } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
-
-const events = [
-  {
-    date: 'May 15, 2026',
-    title: 'Annual Scholarship Award Ceremony',
-    location: 'Wana Community Hall',
-    type: 'Ceremony',
-    desc: 'Join us to celebrate this years scholarship recipients and their families.',
-    color: '#1A4A8A',
-    tag: 'bg-blue-100 text-blue-700',
-  },
-  {
-    date: 'May 22, 2026',
-    title: 'Free Medical Camp — Shawal Valley',
-    location: 'Shawal Valley, NW',
-    type: 'Health',
-    desc: 'Free medical checkups, vaccinations, and medicines for remote villagers.',
-    color: '#2da86a',
-    tag: 'bg-green-100 text-green-700',
-  },
-  {
-    date: 'June 1, 2026',
-    title: 'Youth Leadership Academy — Intake 2026',
-    location: 'WYWA Training Center, Wana',
-    type: 'Training',
-    desc: 'Applications open for the 6-month Youth Leadership Academy program.',
-    color: '#8250c8',
-    tag: 'bg-purple-100 text-purple-700',
-  },
-  {
-    date: 'June 10, 2026',
-    title: 'Clean Water Project Launch — Birmal',
-    location: 'Birmal, South Waziristan',
-    type: 'Infrastructure',
-    desc: 'Launch ceremony for 10 new water filtration units in Birmal village.',
-    color: '#14a0a0',
-    tag: 'bg-teal-100 text-teal-700',
-  },
-  {
-    date: 'June 20, 2026',
-    title: 'Fundraising Dinner — Islamabad',
-    location: 'Marriott Hotel, Islamabad',
-    type: 'Fundraising',
-    desc: 'Annual fundraising dinner with keynote speakers and impact presentations.',
-    color: '#C8A84B',
-    tag: 'bg-yellow-100 text-yellow-700',
-  },
-  {
-    date: 'July 5, 2026',
-    title: 'Vocational Training Graduation',
-    location: 'WYWA Skills Center, Wana',
-    type: 'Ceremony',
-    desc: 'Graduation ceremony for 120 vocational training graduates.',
-    color: '#e0722a',
-    tag: 'bg-red-100 text-red-700',
-  },
-]
+import { eventsAPI } from '@/lib/api'
 
 interface EventType {
   date: string
   title: string
   location: string
-  type: string
   desc: string
   color: string
   tag: string
@@ -79,7 +23,7 @@ function EventCard({ event }: { event: EventType }) {
       <div className="p-8">
         <div className="flex items-center justify-between mb-4">
           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${event.tag}`}>
-            {event.type}
+            Event
           </span>
           <span className="text-xs text-[#6B7A99] font-medium">
             📅 {event.date}
@@ -111,6 +55,28 @@ function EventCard({ event }: { event: EventType }) {
 }
 
 export default function EventsPage() {
+  const [events, setEvents] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    eventsAPI.getAll()
+      .then(data => {
+        if (data.events && data.events.length > 0) {
+          const mapped = data.events.map((e: any) => ({
+            color: '#1A4A8A',
+            tag: 'bg-blue-100 text-blue-700',
+            date: e.date ? new Date(e.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '',
+            title: e.title,
+            desc: e.description || '',
+            location: e.location,
+          }))
+          setEvents(mapped)
+        }
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
   return (
     <>
       <Navbar />
@@ -138,11 +104,23 @@ export default function EventsPage() {
 
         <section className="bg-[#F8F9FC] py-24">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {events.map((event, i) => (
-                <EventCard key={i} event={event} />
-              ))}
-            </div>
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="animate-spin w-8 h-8 border-4 border-[#1A4A8A] border-t-transparent rounded-full" />
+                <span className="ml-3 text-[#6B7A99]">Loading events...</span>
+              </div>
+            ) : events.length === 0 ? (
+              <div className="text-center py-20 text-[#6B7A99]">
+                <p className="text-lg font-medium">No upcoming events</p>
+                <p className="text-sm mt-2">Check back soon for updates.</p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {events.map((event: any, i: number) => (
+                  <EventCard key={i} event={event} />
+                ))}
+              </div>
+            )}
           </div>
         </section>
       </main>

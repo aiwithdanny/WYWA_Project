@@ -1,0 +1,310 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── 1. USERS ───
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(VIEWER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  news         News[]
+  @@map("users")
+}
+
+enum Role {
+  SUPER_ADMIN
+  EDITOR
+  VIEWER
+}
+
+// ─── 2. PROGRAMS ───
+model Program {
+  id            String          @id @default(cuid())
+  title         String
+  slug          String          @unique
+  description   String
+  content       String?
+  category      ProgramCategory
+  status        PublishStatus   @default(DRAFT)
+  imageUrl      String?
+  startDate     DateTime?
+  endDate       DateTime?
+  location      String?
+  beneficiaries Int?
+  isFeatured    Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  gallery       Gallery[]
+  @@map("programs")
+}
+
+enum ProgramCategory {
+  EDUCATION
+  COMMUNITY_DEVELOPMENT
+  DISASTER_RELIEF
+  YOUTH_EMPOWERMENT
+  HEALTH
+  INFRASTRUCTURE
+  OTHER
+}
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// ─── 3. EVENTS ───
+model Event {
+  id            String              @id @default(cuid())
+  title         String
+  slug          String              @unique
+  description   String
+  content       String?
+  date          DateTime
+  endDate       DateTime?
+  location      String
+  imageUrl      String?
+  isPublished   Boolean             @default(false)
+  isFeatured    Boolean             @default(false)
+  maxAttendees  Int?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  registrations EventRegistration[]
+  @@map("events")
+}
+
+// ─── 4. EVENT REGISTRATIONS ───
+model EventRegistration {
+  id        String             @id @default(cuid())
+  eventId   String
+  name      String
+  email     String
+  phone     String
+  message   String?
+  status    RegistrationStatus @default(PENDING)
+  createdAt DateTime           @default(now())
+  event     Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  @@map("event_registrations")
+}
+
+enum RegistrationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+// ─── 5. NEWS ───
+model News {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique
+  excerpt     String?
+  body        String
+  category    NewsCategory  @default(GENERAL)
+  imageUrl    String?
+  authorId    String?
+  isFeatured  Boolean       @default(false)
+  status      PublishStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  author      User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  @@map("news")
+}
+
+enum NewsCategory {
+  GENERAL
+  PROGRAMS
+  EVENTS
+  ANNOUNCEMENTS
+  SUCCESS_STORIES
+  MEDIA
+}
+
+// ─── 6. TEAM MEMBERS ───
+model TeamMember {
+  id         String   @id @default(cuid())
+  name       String
+  role       String
+  bio        String?
+  imageUrl   String?
+  email      String?
+  phone      String?
+  facebook   String?
+  twitter    String?
+  linkedin   String?
+  orderIndex Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  @@map("team_members")
+}
+
+// ─── 7. GALLERY ───
+model Gallery {
+  id         String   @id @default(cuid())
+  albumName  String
+  imageUrl   String
+  caption    String?
+  programId  String?
+  year       Int?
+  isFeatured Boolean  @default(false)
+  uploadedAt DateTime @default(now())
+  program    Program? @relation(fields: [programId], references: [id], onDelete: SetNull)
+  @@map("gallery")
+}
+
+// ─── 8. DONATIONS ───
+model Donation {
+  id            String        @id @default(cuid())
+  donorName     String
+  email         String
+  phone         String?
+  amount        Float
+  currency      String        @default("PKR")
+  campaign      String?
+  paymentMethod PaymentMethod @default(BANK_TRANSFER)
+  paymentRef    String?
+  status        PaymentStatus @default(PENDING)
+  message       String?
+  isAnonymous   Boolean       @default(false)
+  receiptSent   Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  @@map("donations")
+}
+
+enum PaymentMethod {
+  STRIPE
+  JAZZCASH
+  BANK_TRANSFER
+  EASYPAISA
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// ─── 9. VOLUNTEERS ───
+model Volunteer {
+  id           String          @id @default(cuid())
+  name         String
+  email        String
+  phone        String
+  address      String?
+  skills       String[]
+  availability String
+  area         VolunteerArea
+  experience   String?
+  motivation   String?
+  status       VolunteerStatus @default(PENDING)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  @@map("volunteers")
+}
+
+enum VolunteerArea {
+  EDUCATION
+  HEALTH
+  DISASTER_RELIEF
+  COMMUNITY_DEVELOPMENT
+  MEDIA_COMMUNICATIONS
+  FUNDRAISING
+  ADMINISTRATION
+  OTHER
+}
+
+enum VolunteerStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ACTIVE
+  INACTIVE
+}
+
+// ─── 10. MESSAGES ───
+model Message {
+  id        String        @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  isRead    Boolean       @default(false)
+  isReplied Boolean       @default(false)
+  status    MessageStatus @default(NEW)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  @@map("messages")
+}
+
+enum MessageStatus {
+  NEW
+  READ
+  REPLIED
+  RESOLVED
+  SPAM
+}
+
+// ─── 11. REPORTS ───
+model Report {
+  id          String         @id @default(cuid())
+  title       String
+  description String?
+  year        Int
+  fileUrl     String
+  fileSize    String?
+  category    ReportCategory
+  isPublic    Boolean        @default(true)
+  downloads   Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  @@map("reports")
+}
+
+enum ReportCategory {
+  ANNUAL_REPORT
+  FINANCIAL_STATEMENT
+  AUDIT_REPORT
+  PROGRAM_REPORT
+  OTHER
+}
+
+// ─── 12. SITE SETTINGS ───
+model SiteSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  group     String   @default("general")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("site_settings")
+}
+
+// ─── 13. NEWSLETTER ───
+model Newsletter {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  name           String?
+  isConfirmed    Boolean   @default(false)
+  token          String?
+  subscribedAt   DateTime  @default(now())
+  confirmedAt    DateTime?
+  unsubscribedAt DateTime?
+  @@map("newsletter")
+}

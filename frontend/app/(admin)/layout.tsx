@@ -1,7 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import Image from 'next/image'
 
 const navItems = [
@@ -23,7 +23,37 @@ export default function AdminLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [user, setUser] = useState<any>(null)
+  const [authChecked, setAuthChecked] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('wywa_token')
+      const stored = localStorage.getItem('wywa_user')
+      if (!token) {
+        router.push('/login')
+      } else if (stored) {
+        setUser(JSON.parse(stored))
+      }
+      setAuthChecked(true)
+    }
+  }, [router])
+
+  const handleLogout = () => {
+    localStorage.removeItem('wywa_token')
+    localStorage.removeItem('wywa_user')
+    router.push('/login')
+  }
+
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-[#0A1628] flex items-center justify-center">
+        <div className="text-white/60 text-sm">Loading...</div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-screen bg-[#F8F9FC] overflow-hidden">
@@ -82,20 +112,26 @@ export default function AdminLayout({
               <div className="w-8 h-8 rounded-full bg-[#1A4A8A]
                 flex items-center justify-center text-[#C8A84B]
                 font-bold text-xs">
-                SA
+                {user?.name?.charAt(0) || 'A'}
               </div>
               <div>
-                <p className="text-white text-xs font-medium">Super Admin</p>
-                <p className="text-white/40 text-xs">admin@wywa.org.pk</p>
+                <p className="text-white text-xs font-medium">{user?.name || 'Admin'}</p>
+                <p className="text-white/40 text-xs">{user?.email || ''}</p>
               </div>
             </div>
           )}
           <Link href="/"
             className="flex items-center gap-2 text-white/40
-              hover:text-white transition-colors text-xs">
+              hover:text-white transition-colors text-xs mb-2">
             <span>🚪</span>
             {sidebarOpen && <span>Back to Website</span>}
           </Link>
+          <button onClick={handleLogout}
+            className="flex items-center gap-2 text-white/40
+              hover:text-red-400 transition-colors text-xs w-full text-left">
+            <span>↪</span>
+            {sidebarOpen && <span>Logout</span>}
+          </button>
         </div>
       </aside>
 
@@ -126,7 +162,7 @@ export default function AdminLayout({
             <div className="w-8 h-8 rounded-full bg-[#0A1628]
               flex items-center justify-center text-[#C8A84B]
               font-bold text-xs cursor-pointer">
-              SA
+              {user?.name?.charAt(0) || 'A'}
             </div>
           </div>
         </header>

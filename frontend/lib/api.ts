@@ -1,7 +1,9 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
+export { API_URL }
+
 // ─── GENERIC FETCH ───
-async function fetchAPI(endpoint: string, options?: RequestInit) {
+async function fetchAPI(endpoint: string, options?: RequestInit): Promise<any> {
   try {
     const res = await fetch(`${API_URL}${endpoint}`, {
       headers: {
@@ -11,32 +13,38 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
       ...options,
     })
     const data = await res.json()
-    if (!res.ok) throw new Error(data.error || 'Something went wrong')
+    if (!res.ok) {
+      throw new Error(data.message || data.error || `HTTP ${res.status}`)
+    }
     return data
-  } catch (error) {
-    console.error('API Error:', error)
+  } catch (error: any) {
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      throw new Error('Connection error — make sure backend is running on port 8000')
+    }
     throw error
   }
 }
 
+export default fetchAPI
+
 // ─── AUTH TOKEN ───
-function getToken() {
+export function getToken(): string | null {
   if (typeof window !== 'undefined') {
     return localStorage.getItem('wywa_token')
   }
   return null
 }
 
-function authHeaders() {
+function authHeaders(): Record<string, string> {
   const token = getToken()
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
 // ─── PROGRAMS ───
 export const programsAPI = {
-  getAll: (params?: { category?: string; featured?: boolean }) => {
-    const query = new URLSearchParams(params as any).toString()
-    return fetchAPI(`/api/programs${query ? `?${query}` : ''}`)
+  getAll: (params?: Record<string, string>) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : ''
+    return fetchAPI(`/api/programs${query}`)
   },
   getBySlug: (slug: string) => fetchAPI(`/api/programs/${slug}`),
   create: (data: any) => fetchAPI('/api/programs', {
@@ -59,6 +67,20 @@ export const programsAPI = {
 export const eventsAPI = {
   getAll: () => fetchAPI('/api/events'),
   getBySlug: (slug: string) => fetchAPI(`/api/events/${slug}`),
+  create: (data: any) => fetchAPI('/api/events', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  }),
+  update: (id: string, data: any) => fetchAPI(`/api/events/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  }),
+  delete: (id: string) => fetchAPI(`/api/events/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  }),
   register: (data: any) => fetchAPI('/api/events/register', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -69,20 +91,108 @@ export const eventsAPI = {
 export const newsAPI = {
   getAll: () => fetchAPI('/api/news'),
   getBySlug: (slug: string) => fetchAPI(`/api/news/${slug}`),
+  create: (data: any) => fetchAPI('/api/news', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  }),
+  update: (id: string, data: any) => fetchAPI(`/api/news/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  }),
+  delete: (id: string) => fetchAPI(`/api/news/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  }),
 }
 
 // ─── TEAM ───
 export const teamAPI = {
   getAll: () => fetchAPI('/api/team'),
+  create: (data: any) => fetchAPI('/api/team', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  }),
+  update: (id: string, data: any) => fetchAPI(`/api/team/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  }),
+  delete: (id: string) => fetchAPI(`/api/team/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  }),
 }
 
 // ─── GALLERY ───
 export const galleryAPI = {
   getAll: () => fetchAPI('/api/gallery'),
+  create: (data: any) => fetchAPI('/api/gallery', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  }),
+  update: (id: string, data: any) => fetchAPI(`/api/gallery/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  }),
+  delete: (id: string) => fetchAPI(`/api/gallery/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  }),
+}
+
+// ─── VOLUNTEERS ───
+export const volunteersAPI = {
+  getAll: () => fetchAPI('/api/volunteers', { headers: authHeaders() }),
+  apply: (data: any) => fetchAPI('/api/volunteers/apply', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  update: (id: string, data: any) => fetchAPI(`/api/volunteers/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  }),
+  delete: (id: string) => fetchAPI(`/api/volunteers/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  }),
+}
+
+// ─── MESSAGES ───
+export const messagesAPI = {
+  getAll: () => fetchAPI('/api/contact', { headers: authHeaders() }),
+  send: (data: any) => fetchAPI('/api/contact', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  update: (id: string, data: any) => fetchAPI(`/api/contact/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  }),
+  delete: (id: string) => fetchAPI(`/api/contact/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  }),
 }
 
 // ─── DONATIONS ───
 export const donationsAPI = {
+  getAll: () => fetchAPI('/api/donations', { headers: authHeaders() }),
+  update: (id: string, data: any) => fetchAPI(`/api/donations/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  }),
+  delete: (id: string) => fetchAPI(`/api/donations/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  }),
   initiate: (data: any) => fetchAPI('/api/donations/initiate', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -93,27 +203,45 @@ export const donationsAPI = {
   }),
 }
 
-// ─── VOLUNTEERS ───
-export const volunteersAPI = {
-  apply: (data: any) => fetchAPI('/api/volunteers/apply', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-}
-
-// ─── MESSAGES ───
-export const messagesAPI = {
-  send: (data: any) => fetchAPI('/api/contact', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-}
-
 // ─── NEWSLETTER ───
 export const newsletterAPI = {
+  getAll: () => fetchAPI('/api/newsletter', { headers: authHeaders() }),
   subscribe: (data: any) => fetchAPI('/api/newsletter/subscribe', {
     method: 'POST',
     body: JSON.stringify(data),
+  }),
+  delete: (id: string) => fetchAPI(`/api/newsletter/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  }),
+}
+
+// ─── SETTINGS ───
+export const settingsAPI = {
+  get: () => fetchAPI('/api/settings'),
+  update: (data: any) => fetchAPI('/api/settings', {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  }),
+}
+
+// ─── STATS ───
+export const statsAPI = {
+  get: () => fetchAPI('/api/stats'),
+}
+
+// ─── REPORTS ───
+export const reportsAPI = {
+  getAll: () => fetchAPI('/api/reports'),
+  create: (data: any) => fetchAPI('/api/reports', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  }),
+  delete: (id: string) => fetchAPI(`/api/reports/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
   }),
 }
 
@@ -148,6 +276,4 @@ export const authAPI = {
     return false
   },
 }
-
-export default fetchAPI
 

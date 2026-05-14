@@ -1,56 +1,38 @@
-import type { Metadata } from 'next'
+'use client'
+import { useState, useEffect } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
-
-export const metadata: Metadata = {
-  title: 'Our Team — WYWA',
-  description: 'Meet the dedicated leadership team behind Waziristan Youth Welfare Association committed to serving and empowering communities.',
-  keywords: ['WYWA team', 'WYWA leadership', 'Waziristan NGO team'],
-  openGraph: {
-    title: 'Our Team — WYWA',
-    description: 'Meet the dedicated team behind Waziristan Youth Welfare Association.',
-    url: 'https://wywa.org.pk/team',
-    siteName: 'WYWA',
-    images: [{ url: 'https://res.cloudinary.com/dji2qef4l/image/upload/v1777286646/WYWA-LOGO.jpg', width: 800, height: 600, alt: 'WYWA Logo' }],
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Our Team — WYWA',
-    description: 'Meet the dedicated team behind Waziristan Youth Welfare Association.',
-    images: ['https://res.cloudinary.com/dji2qef4l/image/upload/v1777286646/WYWA-LOGO.jpg'],
-  },
-  alternates: { canonical: 'https://wywa.org.pk/team' },
-}
-
-const team = [
-  { name: 'Zahir Khan', role: 'Founder & President', initial: 'ZK',
-    bio: 'A native of South Waziristan with 15+ years in community development and humanitarian work across KP.',
-    color: 'from-[#1A4A8A] to-[#0A1628]' },
-  { name: 'Nasreen Mehsud', role: 'Director of Education', initial: 'NM',
-    bio: 'Former schoolteacher turned education advocate, leading WYWA scholarship and literacy programs since 2013.',
-    color: 'from-[#2da86a] to-[#1a6b42]' },
-  { name: 'Imran Wazir', role: 'Head of Relief Operations', initial: 'IW',
-    bio: 'Disaster response specialist who has coordinated relief efforts in 3 major flood events across Waziristan.',
-    color: 'from-[#C8A84B] to-[#8a6e2a]' },
-  { name: 'Rukhsana Khan', role: 'Community Programs Lead', initial: 'RK',
-    bio: 'Women rights advocate and program designer with expertise in grassroots empowerment and livelihood creation.',
-    color: 'from-[#8250c8] to-[#4a2a80]' },
-  { name: 'Dr. Saeed Ahmad', role: 'Health Programs Director', initial: 'SA',
-    bio: 'Medical doctor with 10+ years serving remote communities, overseeing all mobile health clinic operations.',
-    color: 'from-[#e0722a] to-[#8a3a10]' },
-  { name: 'Fawad Mehsud', role: 'Finance & Admin Manager', initial: 'FM',
-    bio: 'Certified accountant ensuring full financial transparency and compliance with NGO regulations.',
-    color: 'from-[#14a0a0] to-[#0a5050]' },
-  { name: 'Zainab Wazir', role: 'Youth Programs Coordinator', initial: 'ZW',
-    bio: 'Youth empowerment specialist managing the Leadership Academy and sports programs for young people.',
-    color: 'from-[#e0728a] to-[#8a2a40]' },
-  { name: 'Khalid Dawar', role: 'Field Operations Manager', initial: 'KD',
-    bio: 'Manages on-ground operations across North and South Waziristan, ensuring program delivery at village level.',
-    color: 'from-[#2563B0] to-[#0a2a60]' },
-]
+import { teamAPI } from '@/lib/api'
 
 export default function TeamPage() {
+  const [team, setTeam] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    teamAPI.getAll()
+      .then(data => {
+        if (data.team && data.team.length > 0) {
+          const colors = [
+            'from-[#1A4A8A] to-[#0A1628]', 'from-[#2da86a] to-[#1a6b42]',
+            'from-[#C8A84B] to-[#8a6e2a]', 'from-[#8250c8] to-[#4a2a80]',
+            'from-[#e0722a] to-[#8a3a10]', 'from-[#14a0a0] to-[#0a5050]',
+            'from-[#e0728a] to-[#8a2a40]', 'from-[#2563B0] to-[#0a2a60]',
+          ]
+          const mapped = data.team.map((t: any, i: number) => ({
+            name: t.name,
+            role: t.role,
+            initial: t.name.split(' ').map((n: string) => n[0]).join('').toUpperCase(),
+            bio: t.bio || '',
+            color: colors[i % colors.length],
+            imageUrl: t.imageUrl || '',
+          }))
+          setTeam(mapped)
+        }
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
   return (
     <>
       <Navbar />
@@ -76,22 +58,39 @@ export default function TeamPage() {
 
         <section className="bg-[#F8F9FC] py-24">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {team.map((member, i) => (
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="animate-spin w-8 h-8 border-4 border-[#1A4A8A] border-t-transparent rounded-full" />
+                <span className="ml-3 text-[#6B7A99]">Loading team...</span>
+              </div>
+            ) : team.length === 0 ? (
+              <div className="text-center py-20 text-[#6B7A99]">
+                <p className="text-lg font-medium">No team members listed</p>
+                <p className="text-sm mt-2">Check back soon for updates.</p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {team.map((member, i) => (
                 <div key={i}
                   className="bg-white rounded-2xl overflow-hidden
                     hover:-translate-y-2 transition-all duration-300
                     hover:shadow-xl group">
                   <div className={`bg-gradient-to-br ${member.color}
                     p-10 flex items-center justify-center`}>
-                    <div className="w-20 h-20 rounded-full
-                      bg-white/15 border-2 border-white/20
-                      flex items-center justify-center
-                      text-white font-bold text-2xl
-                      group-hover:scale-110 transition-transform"
-                      style={{ fontFamily: 'Playfair Display, serif' }}>
-                      {member.initial}
-                    </div>
+                    {member.imageUrl ? (
+                      <img src={member.imageUrl} alt={member.name}
+                        className="w-20 h-20 rounded-full object-cover border-2 border-white/30
+                          group-hover:scale-110 transition-transform" />
+                    ) : (
+                      <div className="w-20 h-20 rounded-full
+                        bg-white/15 border-2 border-white/20
+                        flex items-center justify-center
+                        text-white font-bold text-2xl
+                        group-hover:scale-110 transition-transform"
+                        style={{ fontFamily: 'Playfair Display, serif' }}>
+                        {member.initial}
+                      </div>
+                    )}
                   </div>
                   <div className="p-6 text-center">
                     <h3 className="font-bold text-[#0A1628] text-lg mb-1"
@@ -109,6 +108,7 @@ export default function TeamPage() {
                 </div>
               ))}
             </div>
+          )}
           </div>
         </section>
 

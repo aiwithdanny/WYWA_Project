@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import { volunteersAPI } from '@/lib/api'
 
 const skills = [
   'Teaching', 'Healthcare', 'IT & Technology', 'Construction',
@@ -35,18 +36,14 @@ export default function VolunteerPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      await fetch('http://localhost:8000/api/volunteers/apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          phone: form.phone,
-          skills: form.selectedSkills,
-          availability: form.availability,
-          area: form.selectedArea || 'OTHER',
-          motivation: form.motivation,
-        }),
+      await volunteersAPI.apply({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        skills: form.selectedSkills,
+        availability: form.availability,
+        area: form.selectedArea || 'OTHER',
+        motivation: form.motivation,
       })
       setSubmitted(true)
     } catch (error) {

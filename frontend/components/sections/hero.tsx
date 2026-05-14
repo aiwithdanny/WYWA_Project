@@ -1,14 +1,14 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import fetchAPI from '@/lib/api'
 
-const stats = [
-  { num: 12000, suffix: '+', label: 'Lives Impacted' },
-  { num: 45,    suffix: '+', label: 'Active Programs' },
-  { num: 14,    suffix: '+', label: 'Years of Service' },
-  { num: 320,   suffix: '+', label: 'Scholarships' },
-]
+interface HeroStat {
+  num: number
+  suffix: string
+  label: string
+}
 
 function useCountUp(target: number, duration = 2000) {
   const ref = useRef<HTMLSpanElement>(null)
@@ -58,6 +58,29 @@ function StatItem({ num, suffix, label }: { num: number; suffix: string; label: 
 }
 
 export default function Hero() {
+  const [stats, setStats] = useState<HeroStat[]>([
+    { num: 0, suffix: '+', label: 'Lives Impacted' },
+    { num: 0, suffix: '+', label: 'Active Programs' },
+    { num: 0, suffix: '+', label: 'Years of Service' },
+    { num: 0, suffix: '+', label: 'Scholarships' },
+  ])
+
+  useEffect(() => {
+    fetchAPI('/api/stats')
+      .then(data => {
+        if (data.stats) {
+          const s = data.stats
+          setStats([
+            { num: s.beneficiaries || 0, suffix: '+', label: 'Lives Impacted' },
+            { num: s.activePrograms || 0, suffix: '+', label: 'Active Programs' },
+            { num: 14, suffix: '+', label: 'Years of Service' },
+            { num: s.newsArticles || 0, suffix: '+', label: 'News Articles' },
+          ])
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   return (
     <section className="relative min-h-screen bg-[#0A1628] flex flex-col
       justify-center overflow-hidden pt-20">

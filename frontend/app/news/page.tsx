@@ -1,56 +1,44 @@
-import type { Metadata } from 'next'
+'use client'
+import { useState, useEffect } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import { newsAPI } from '@/lib/api'
 
-export const metadata: Metadata = {
-  title: 'News & Blog — WYWA',
-  description: 'Latest news, success stories, announcements and updates from Waziristan Youth Welfare Association.',
-  keywords: ['WYWA news', 'Waziristan NGO updates', 'WYWA blog', 'youth welfare news Pakistan'],
-  openGraph: {
-    title: 'News & Blog — WYWA',
-    description: 'Latest news and updates from Waziristan Youth Welfare Association.',
-    url: 'https://wywa.org.pk/news',
-    siteName: 'WYWA',
-    images: [{ url: 'https://res.cloudinary.com/dji2qef4l/image/upload/v1777286646/WYWA-LOGO.jpg', width: 800, height: 600, alt: 'WYWA Logo' }],
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'News & Blog — WYWA',
-    description: 'Latest news and updates from Waziristan Youth Welfare Association.',
-    images: ['https://res.cloudinary.com/dji2qef4l/image/upload/v1777286646/WYWA-LOGO.jpg'],
-  },
-  alternates: { canonical: 'https://wywa.org.pk/news' },
+const categoryMeta: any = {
+  SUCCESS_STORIES:  { tag: 'bg-green-100 text-green-700', label: 'Success Story' },
+  PROGRAMS:         { tag: 'bg-blue-100 text-blue-700', label: 'Programs' },
+  ANNOUNCEMENTS:    { tag: 'bg-yellow-100 text-yellow-700', label: 'Announcement' },
+  EVENTS:           { tag: 'bg-red-100 text-red-700', label: 'Event' },
+  MEDIA:            { tag: 'bg-purple-100 text-purple-700', label: 'Media' },
+  GENERAL:          { tag: 'bg-gray-100 text-gray-700', label: 'General' },
 }
 
-const news = [
-  { category: 'Success Story', date: 'April 20, 2026',
-    title: 'WYWA Scholar Becomes First Female Doctor from Her Village',
-    excerpt: 'Zara Wazir, a WYWA scholarship recipient, has graduated as a doctor from Khyber Medical University — the first female doctor from her village in South Waziristan.',
-    tag: 'bg-green-100 text-green-700', readTime: '4 min read' },
-  { category: 'Programs', date: 'April 15, 2026',
-    title: '60th Water Well Completed in Birmal District',
-    excerpt: 'WYWA Clean Water Initiative has reached a major milestone — completing its 60th water well installation, providing clean water to over 3,000 residents.',
-    tag: 'bg-blue-100 text-blue-700', readTime: '3 min read' },
-  { category: 'Announcement', date: 'April 10, 2026',
-    title: 'Youth Leadership Academy 2026 Applications Now Open',
-    excerpt: 'WYWA is pleased to announce that applications for the 2026 Youth Leadership Academy are now open. We are accepting 50 candidates aged 18-28.',
-    tag: 'bg-yellow-100 text-yellow-700', readTime: '2 min read' },
-  { category: 'Relief', date: 'March 28, 2026',
-    title: 'WYWA Distributes Aid to 500 Flood-Affected Families',
-    excerpt: 'Following recent flooding in North Waziristan, WYWA deployed emergency response teams within 48 hours, distributing food packages and shelter materials.',
-    tag: 'bg-red-100 text-red-700', readTime: '5 min read' },
-  { category: 'Health', date: 'March 15, 2026',
-    title: 'Mobile Health Clinic Reaches 40th Village',
-    excerpt: 'WYWA Mobile Health Clinic program has now served its 40th village, providing free medical care, vaccinations, and maternal health services.',
-    tag: 'bg-purple-100 text-purple-700', readTime: '3 min read' },
-  { category: 'Community', date: 'March 5, 2026',
-    title: 'Women Empowerment Circle Launches in 5 New Locations',
-    excerpt: 'WYWA Women Empowerment Circles have expanded to 5 new locations, bringing financial literacy and entrepreneurship training to 200 more women.',
-    tag: 'bg-pink-100 text-pink-700', readTime: '4 min read' },
-]
-
 export default function NewsPage() {
+  const [news, setNews] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    newsAPI.getAll()
+      .then(data => {
+        if (data.news && data.news.length > 0) {
+          const mapped = data.news.map((n: any) => {
+            const meta = categoryMeta[n.category || 'GENERAL'] || categoryMeta.GENERAL
+            return {
+              category: meta.label,
+              date: n.publishedAt ? new Date(n.publishedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : new Date(n.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+              title: n.title,
+              excerpt: n.excerpt || 'No excerpt available.',
+              tag: meta.tag,
+              readTime: '3 min read',
+            }
+          })
+          setNews(mapped)
+        }
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
   return (
     <>
       <Navbar />
@@ -76,49 +64,61 @@ export default function NewsPage() {
 
         <section className="bg-[#F8F9FC] py-24">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {news.map((article, i) => (
-                <div key={i}
-                  className="bg-white rounded-2xl overflow-hidden
-                    hover:-translate-y-2 transition-all duration-300
-                    hover:shadow-xl group cursor-pointer">
-                  <div className="bg-gradient-to-br from-[#0A1628]
-                    to-[#1A4A8A] h-40 flex items-center justify-center">
-                    <span className="text-5xl">📰</span>
-                  </div>
-                  <div className="p-7">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className={`px-3 py-1 rounded-full text-xs
-                        font-semibold ${article.tag}`}>
-                        {article.category}
-                      </span>
-                      <span className="text-xs text-[#6B7A99]">
-                        {article.readTime}
-                      </span>
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="animate-spin w-8 h-8 border-4 border-[#1A4A8A] border-t-transparent rounded-full" />
+                <span className="ml-3 text-[#6B7A99]">Loading news...</span>
+              </div>
+            ) : news.length === 0 ? (
+              <div className="text-center py-20 text-[#6B7A99]">
+                <p className="text-lg font-medium">No news articles available</p>
+                <p className="text-sm mt-2">Check back soon for updates.</p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {news.map((article, i) => (
+                  <div key={i}
+                    className="bg-white rounded-2xl overflow-hidden
+                      hover:-translate-y-2 transition-all duration-300
+                      hover:shadow-xl group cursor-pointer">
+                    <div className="bg-gradient-to-br from-[#0A1628]
+                      to-[#1A4A8A] h-40 flex items-center justify-center">
+                      <span className="text-5xl">📰</span>
                     </div>
-                    <h3 className="font-bold text-[#0A1628] text-lg mb-3
-                      group-hover:text-[#1A4A8A] transition-colors
-                      leading-tight"
-                      style={{ fontFamily: 'Playfair Display, serif' }}>
-                      {article.title}
-                    </h3>
-                    <p className="text-[#6B7A99] text-sm leading-relaxed mb-4">
-                      {article.excerpt}
-                    </p>
-                    <div className="flex items-center justify-between
-                      pt-4 border-t border-[#EEF1F6]">
-                      <span className="text-xs text-[#6B7A99]">
-                        {article.date}
-                      </span>
-                      <span className="text-xs font-semibold
-                        text-[#1A4A8A] group-hover:underline">
-                        Read More →
-                      </span>
+                    <div className="p-7">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className={`px-3 py-1 rounded-full text-xs
+                          font-semibold ${article.tag}`}>
+                          {article.category}
+                        </span>
+                        <span className="text-xs text-[#6B7A99]">
+                          {article.readTime}
+                        </span>
+                      </div>
+                      <h3 className="font-bold text-[#0A1628] text-lg mb-3
+                        group-hover:text-[#1A4A8A] transition-colors
+                        leading-tight"
+                        style={{ fontFamily: 'Playfair Display, serif' }}>
+                        {article.title}
+                      </h3>
+                      <p className="text-[#6B7A99] text-sm leading-relaxed mb-4">
+                        {article.excerpt}
+                      </p>
+                      <div className="flex items-center justify-between
+                        pt-4 border-t border-[#EEF1F6]">
+                        <span className="text-xs text-[#6B7A99]">
+                          {article.date}
+                        </span>
+                        <span className="text-xs font-semibold
+                          text-[#1A4A8A] group-hover:underline">
+                          Read More →
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       </main>
