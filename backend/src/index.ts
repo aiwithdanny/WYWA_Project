@@ -26,9 +26,24 @@ const PORT = process.env.PORT || 5000
 
 // ─── MIDDLEWARE ───
 app.use(helmet())
+
 app.use(cors({
-  origin: process.env.NEXTAUTH_URL || 'http://localhost:3000',
+  origin: function(origin, callback) {
+    const allowed = [
+      'http://localhost:3000',
+      'https://wywa-backend.onrender.com',
+      process.env.FRONTEND_URL,
+    ].filter(Boolean)
+    
+    if (!origin || allowed.indexOf(origin) !== -1) {
+      callback(null, true)
+    } else {
+      callback(null, true)
+    }
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }))
 app.use(morgan('dev'))
 app.use(express.json({ limit: '10mb' }))
