@@ -13,6 +13,14 @@ function getToken() {
   return null
 }
 
+function getApiUrl() {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return 'https://wywa-backend.onrender.com'
+  }
+  return 'http://localhost:8000'
+}
+
 export default function ImageUpload({ value, onChange, folder = 'wywa/general', label = 'Upload Image' }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState(value || '')
@@ -32,7 +40,7 @@ export default function ImageUpload({ value, onChange, folder = 'wywa/general', 
     formData.append('folder', folder)
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/upload`, {
+      const res = await fetch(`${getApiUrl()}/api/upload`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${getToken()}` },
         body: formData,

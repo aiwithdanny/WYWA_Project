@@ -127,9 +127,13 @@ export default function AdminGalleryPage() {
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map((item: any) => (
           <div key={item.id} className="bg-white rounded-2xl overflow-hidden hover:-translate-y-1 transition-all duration-200 hover:shadow-lg group">
-            <div className={`h-40 flex items-center justify-center relative ${item.isFeatured ? 'bg-gradient-to-br from-[#C8A84B] to-[#8a6e2a]' : 'bg-gradient-to-br from-[#1A4A8A] to-[#0A1628]'}`}>
-              <span className="text-5xl">🖼️</span>
-              {item.isFeatured && <span className="absolute top-3 right-3 bg-white/20 text-white text-xs px-2 py-1 rounded-full">Featured</span>}
+            <div className={`h-40 flex items-center justify-center relative overflow-hidden ${item.isFeatured ? 'bg-gradient-to-br from-[#C8A84B] to-[#8a6e2a]' : 'bg-gradient-to-br from-[#1A4A8A] to-[#0A1628]'}`}>
+              {item.imageUrl ? (
+                <img src={item.imageUrl} alt={item.albumName} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-5xl">🖼️</span>
+              )}
+              {item.isFeatured && <span className="absolute top-3 right-3 bg-white/20 text-white text-xs px-2 py-1 rounded-full z-10">Featured</span>}
             </div>
             <div className="p-5">
               <h3 className="font-bold text-[#0A1628] text-sm mb-1">{item.albumName}</h3>
