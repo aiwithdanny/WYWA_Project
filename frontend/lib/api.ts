@@ -1,4 +1,12 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const getApiUrl = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return 'https://wywa-backend.onrender.com'
+  }
+  return 'http://localhost:8000'
+}
+
+const API_URL = getApiUrl()
 
 export { API_URL }
 
