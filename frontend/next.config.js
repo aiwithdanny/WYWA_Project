@@ -1,8 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['res.cloudinary.com'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'wywa-backend.onrender.com',
+      },
+    ],
   },
+  compress: true,
+  poweredByHeader: false,
 }
 
 module.exports = nextConfig
