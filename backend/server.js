@@ -159,12 +159,41 @@ app.get('/api/programs/:id', async (req, res) => {
 })
 
 app.post('/api/programs', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
-  const { title, slug, description, category, status, beneficiaries, location, startDate, isFeatured } = req.body
-  if (!title || !slug) return res.status(400).json({ status: 'fail', message: 'Title and slug required' })
-  const program = await prisma.program.create({
-    data: { title, slug, description: description || '', category: category || 'OTHER', status: status || 'DRAFT', beneficiaries: beneficiaries || 0, location: location || '', startDate: startDate ? new Date(startDate) : null, isFeatured: !!isFeatured }
-  })
-  res.status(201).json({ status: 'success', program })
+  try {
+    console.log('POST /api/programs body:', req.body)
+    const { title, slug, description, category, status, beneficiaries, location, startDate, isFeatured, imageUrl } = req.body
+    
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: 'Title is required' })
+    }
+    
+    const finalSlug = slug?.trim() || title.toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') + '-' + Date.now()
+    
+    const program = await prisma.program.create({
+      data: {
+        title: title.trim(),
+        slug: finalSlug,
+        description: description?.trim() || '',
+        category: category || 'OTHER',
+        status: status || 'PUBLISHED',
+        beneficiaries: beneficiaries ? parseInt(beneficiaries) : null,
+        location: location?.trim() || null,
+        startDate: startDate ? new Date(startDate) : null,
+        imageUrl: imageUrl?.trim() || null,
+        isFeatured: !!isFeatured,
+      }
+    })
+    
+    res.status(201).json({ program, message: 'Program created successfully' })
+  } catch (error: any) {
+    console.error('POST /api/programs error:', error)
+    res.status(500).json({ 
+      error: 'Failed to create program',
+      details: error.message 
+    })
+  }
 })
 
 app.put('/api/programs/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
@@ -206,19 +235,41 @@ app.get('/api/events/:id', async (req, res) => {
 })
 
 app.post('/api/events', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
-  const { title, slug, description, date, location, isPublished } = req.body
-  if (!title || !date) return res.status(400).json({ status: 'fail', message: 'Title and date required' })
-  const event = await prisma.event.create({
-    data: {
-      title,
-      slug: slug || title.toLowerCase().replace(/\s+/g, '-'),
-      description: description || '',
-      date: new Date(date),
-      location: location || '',
-      isPublished: isPublished !== undefined ? isPublished : true,
+  try {
+    console.log('POST /api/events body:', req.body)
+    const { title, slug, description, date, location, isPublished, imageUrl } = req.body
+    
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: 'Title is required' })
     }
-  })
-  res.status(201).json({ status: 'success', event })
+    if (!date) {
+      return res.status(400).json({ error: 'Date is required' })
+    }
+    
+    const finalSlug = slug?.trim() || title.toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') + '-' + Date.now()
+    
+    const event = await prisma.event.create({
+      data: {
+        title: title.trim(),
+        slug: finalSlug,
+        description: description?.trim() || '',
+        date: new Date(date),
+        location: location?.trim() || '',
+        imageUrl: imageUrl?.trim() || null,
+        isPublished: isPublished !== undefined ? isPublished : true,
+      }
+    })
+    
+    res.status(201).json({ event, message: 'Event created successfully' })
+  } catch (error: any) {
+    console.error('POST /api/events error:', error)
+    res.status(500).json({ 
+      error: 'Failed to create event',
+      details: error.message 
+    })
+  }
 })
 
 app.put('/api/events/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
@@ -274,21 +325,40 @@ app.get('/api/news/:id', async (req, res) => {
 })
 
 app.post('/api/news', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
-  const { title, slug, excerpt, body, category, status, isFeatured, publishedAt } = req.body
-  if (!title || !body) return res.status(400).json({ status: 'fail', message: 'Title and body required' })
-  const article = await prisma.news.create({
-    data: {
-      title,
-      slug: slug || title.toLowerCase().replace(/\s+/g, '-'),
-      excerpt: excerpt || '',
-      body,
-      category: category || 'GENERAL',
-      status: status || 'DRAFT',
-      isFeatured: !!isFeatured,
-      publishedAt: publishedAt ? new Date(publishedAt) : (status === 'PUBLISHED' ? new Date() : null),
+  try {
+    console.log('POST /api/news body:', req.body)
+    const { title, slug, excerpt, body, category, status, isFeatured, publishedAt, imageUrl } = req.body
+    
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: 'Title is required' })
     }
-  })
-  res.status(201).json({ status: 'success', news: article })
+    
+    const finalSlug = slug?.trim() || title.toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') + '-' + Date.now()
+    
+    const article = await prisma.news.create({
+      data: {
+        title: title.trim(),
+        slug: finalSlug,
+        excerpt: excerpt?.trim() || '',
+        body: body?.trim() || '',
+        category: category || 'GENERAL',
+        status: status || 'PUBLISHED',
+        isFeatured: !!isFeatured,
+        imageUrl: imageUrl?.trim() || null,
+        publishedAt: publishedAt ? new Date(publishedAt) : (status === 'PUBLISHED' ? new Date() : null),
+      }
+    })
+    
+    res.status(201).json({ article, message: 'Article created successfully' })
+  } catch (error: any) {
+    console.error('POST /api/news error:', error)
+    res.status(500).json({ 
+      error: 'Failed to create article',
+      details: error.message 
+    })
+  }
 })
 
 app.put('/api/news/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
@@ -326,12 +396,39 @@ app.get('/api/team/:id', async (req, res) => {
 })
 
 app.post('/api/team', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
-  const { name, role, bio, email, phone, orderIndex, imageUrl } = req.body
-  if (!name || !role) return res.status(400).json({ status: 'fail', message: 'Name and role required' })
-  const member = await prisma.teamMember.create({
-    data: { name, role, bio: bio || '', email: email || '', phone: phone || '', orderIndex: orderIndex || 0, imageUrl: imageUrl || '', isActive: true }
-  })
-  res.status(201).json({ status: 'success', team: member })
+  try {
+    console.log('POST /api/team body:', req.body)
+    const { name, role, bio, email, phone, orderIndex, imageUrl } = req.body
+    
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Name is required' })
+    }
+    if (!role || !role.trim()) {
+      return res.status(400).json({ error: 'Role is required' })
+    }
+    
+    const member = await prisma.teamMember.create({
+      data: {
+        name: name.trim(),
+        role: role.trim(),
+        bio: bio?.trim() || '',
+        email: email?.trim() || null,
+        phone: phone?.trim() || null,
+        orderIndex: orderIndex || 0,
+        imageUrl: imageUrl?.trim() || null,
+        isActive: true,
+      }
+    })
+    
+    console.log('Created member:', member)
+    res.status(201).json({ member, message: 'Team member added successfully' })
+  } catch (error: any) {
+    console.error('POST /api/team error:', error)
+    res.status(500).json({ 
+      error: 'Failed to create team member',
+      details: error.message 
+    })
+  }
 })
 
 app.put('/api/team/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
@@ -370,12 +467,32 @@ app.get('/api/gallery/:id', async (req, res) => {
 })
 
 app.post('/api/gallery', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
-  const { albumName, imageUrl, caption, year, isFeatured } = req.body
-  if (!albumName) return res.status(400).json({ status: 'fail', message: 'Album name required' })
-  const item = await prisma.gallery.create({
-    data: { albumName, imageUrl: imageUrl || '', caption: caption || '', year: year || new Date().getFullYear(), isFeatured: !!isFeatured }
-  })
-  res.status(201).json({ status: 'success', gallery: item })
+  try {
+    console.log('POST /api/gallery body:', req.body)
+    const { albumName, imageUrl, caption, year, isFeatured } = req.body
+    
+    if (!albumName || !albumName.trim()) {
+      return res.status(400).json({ error: 'Album name is required' })
+    }
+    
+    const item = await prisma.gallery.create({
+      data: {
+        albumName: albumName.trim(),
+        imageUrl: imageUrl?.trim() || '',
+        caption: caption?.trim() || null,
+        year: year ? parseInt(year) : new Date().getFullYear(),
+        isFeatured: !!isFeatured,
+      }
+    })
+    
+    res.status(201).json({ item, message: 'Gallery item added successfully' })
+  } catch (error: any) {
+    console.error('POST /api/gallery error:', error)
+    res.status(500).json({ 
+      error: 'Failed to add gallery item',
+      details: error.message 
+    })
+  }
 })
 
 app.put('/api/gallery/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {

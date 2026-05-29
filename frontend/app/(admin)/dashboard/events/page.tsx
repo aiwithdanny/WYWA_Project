@@ -33,22 +33,44 @@ export default function AdminEventsPage() {
   )
 
   const handleSave = async () => {
+    // Validate before sending
+    if (!newEvent.title || !newEvent.title.trim()) {
+      alert('Title is required')
+      return
+    }
+    if (!newEvent.date) {
+      alert('Date is required')
+      return
+    }
+    
     setSaving(true)
     try {
-      if (editingId) {
-        await eventsAPI.update(editingId, newEvent)
-        await fetchEvents()
-        setShowForm(false)
-        setEditingId(null)
-        setNewEvent({ title: '', slug: '', description: '', date: '', location: '' })
-      } else {
-        await eventsAPI.create(newEvent)
-        await fetchEvents()
-        setShowForm(false)
-        setNewEvent({ title: '', slug: '', description: '', date: '', location: '' })
+      const payload = {
+        title: newEvent.title.trim(),
+        slug: newEvent.slug?.trim() || newEvent.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now(),
+        description: newEvent.description?.trim() || '',
+        date: newEvent.date,
+        location: newEvent.location?.trim() || '',
       }
-    } catch (err: any) {
-      alert(err.message || 'Connection error — make sure backend is running on port 8000')
+      
+      console.log('Sending payload:', payload)
+      
+      let result
+      if (editingId) {
+        result = await eventsAPI.update(editingId, payload)
+      } else {
+        result = await eventsAPI.create(payload)
+      }
+      
+      console.log('Result:', result)
+      await fetchEvents()
+      setShowForm(false)
+      setEditingId(null)
+      setNewEvent({ title: '', slug: '', description: '', date: '', location: '' })
+      alert(editingId ? 'Event updated!' : 'Event added!')
+    } catch (error: any) {
+      console.error('Error:', error)
+      alert(error.message || 'Failed to save event')
     } finally {
       setSaving(false)
     }
@@ -106,7 +128,7 @@ export default function AdminEventsPage() {
           </div>
           <textarea value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} placeholder="Description" rows={3} className="w-full px-4 py-3 rounded-xl border border-[#EEF1F6] text-sm bg-[#F8F9FC] focus:outline-none focus:border-[#1A4A8A] resize-none mb-4" />
           <div className="flex gap-3">
-            <button onClick={handleSave} disabled={saving} className="bg-[#2da86a] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#1a6b42] transition-colors disabled:opacity-70">{saving ? 'Saving...' : editingId ? 'Update Event' : 'Save Event'} ✓</button>
+            <button onClick={handleSave} disabled={saving} className="bg-[#2da86a] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#1a6b42] transition-colors disabled:opacity-70">{saving ? 'Connecting to server... Please wait' : editingId ? 'Update Event' : 'Save Event'} ✓</button>
             <button onClick={() => { setShowForm(false); setEditingId(null); setNewEvent({ title: '', slug: '', description: '', date: '', location: '' }) }} className="bg-[#F8F9FC] text-[#6B7A99] px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#EEF1F6] transition-colors">Cancel</button>
           </div>
         </div>

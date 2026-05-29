@@ -34,22 +34,46 @@ export default function AdminTeamPage() {
   )
 
   const handleSave = async () => {
+    // Validate before sending
+    if (!newMember.name || !newMember.name.trim()) {
+      alert('Name is required')
+      return
+    }
+    if (!newMember.role || !newMember.role.trim()) {
+      alert('Role is required')
+      return
+    }
+    
     setSaving(true)
     try {
-      if (editingId) {
-        await teamAPI.update(editingId, newMember)
-        await fetchTeam()
-        setShowForm(false)
-        setEditingId(null)
-        setNewMember({ name: '', role: '', bio: '', email: '', phone: '', orderIndex: 0, imageUrl: '' })
-      } else {
-        await teamAPI.create(newMember)
-        await fetchTeam()
-        setShowForm(false)
-        setNewMember({ name: '', role: '', bio: '', email: '', phone: '', orderIndex: 0, imageUrl: '' })
+      const payload = {
+        name: newMember.name.trim(),
+        role: newMember.role.trim(),
+        bio: newMember.bio?.trim() || '',
+        email: newMember.email?.trim() || null,
+        phone: newMember.phone?.trim() || null,
+        orderIndex: newMember.orderIndex || 0,
+        imageUrl: newMember.imageUrl?.trim() || null,
       }
-    } catch (err: any) {
-      alert(err.message || 'Connection error — make sure backend is running on port 8000')
+      
+      console.log('Sending payload:', payload)
+      
+      let result
+      if (editingId) {
+        result = await teamAPI.update(editingId, payload)
+      } else {
+        result = await teamAPI.create(payload)
+      }
+      
+      console.log('Result:', result)
+      await fetchTeam()
+      setShowForm(false)
+      setEditingId(null)
+      setNewMember({ name: '', role: '', bio: '', email: '', phone: '', orderIndex: 0, imageUrl: '' })
+      alert(editingId ? 'Member updated!' : 'Member added!')
+    } catch (error: any) {
+      console.error('Error:', error)
+      alert(error.message || 'Failed to save team member')
     } finally {
       setSaving(false)
     }
@@ -115,7 +139,7 @@ export default function AdminTeamPage() {
             />
           </div>
           <div className="flex gap-3">
-            <button onClick={handleSave} disabled={saving} className="bg-[#2da86a] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#1a6b42] transition-colors disabled:opacity-70">{saving ? 'Saving...' : editingId ? 'Update Member' : 'Save Member'} ✓</button>
+            <button onClick={handleSave} disabled={saving} className="bg-[#2da86a] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#1a6b42] transition-colors disabled:opacity-70">{saving ? 'Connecting to server... Please wait' : editingId ? 'Update Member' : 'Save Member'} ✓</button>
             <button onClick={() => { setShowForm(false); setEditingId(null); setNewMember({ name: '', role: '', bio: '', email: '', phone: '', orderIndex: 0, imageUrl: '' }) }} className="bg-[#F8F9FC] text-[#6B7A99] px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#EEF1F6] transition-colors">Cancel</button>
           </div>
         </div>

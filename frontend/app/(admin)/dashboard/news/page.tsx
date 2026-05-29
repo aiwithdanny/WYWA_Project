@@ -34,22 +34,47 @@ export default function AdminNewsPage() {
   )
 
   const handleSave = async () => {
+    // Validate before sending
+    if (!newArticle.title || !newArticle.title.trim()) {
+      alert('Title is required')
+      return
+    }
+    if (!newArticle.body || !newArticle.body.trim()) {
+      alert('Body is required')
+      return
+    }
+    
     setSaving(true)
     try {
-      if (editingId) {
-        await newsAPI.update(editingId, newArticle)
-        await fetchNews()
-        setShowForm(false)
-        setEditingId(null)
-        setNewArticle({ title: '', slug: '', excerpt: '', body: '', category: 'GENERAL', status: 'DRAFT', isFeatured: false, imageUrl: '' })
-      } else {
-        await newsAPI.create(newArticle)
-        await fetchNews()
-        setShowForm(false)
-        setNewArticle({ title: '', slug: '', excerpt: '', body: '', category: 'GENERAL', status: 'DRAFT', isFeatured: false, imageUrl: '' })
+      const payload = {
+        title: newArticle.title.trim(),
+        slug: newArticle.slug?.trim() || newArticle.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now(),
+        excerpt: newArticle.excerpt?.trim() || '',
+        body: newArticle.body.trim(),
+        category: newArticle.category || 'GENERAL',
+        status: newArticle.status || 'PUBLISHED',
+        isFeatured: newArticle.isFeatured || false,
+        imageUrl: newArticle.imageUrl?.trim() || null,
       }
-    } catch (err: any) {
-      alert(err.message || 'Connection error — make sure backend is running on port 8000')
+      
+      console.log('Sending payload:', payload)
+      
+      let result
+      if (editingId) {
+        result = await newsAPI.update(editingId, payload)
+      } else {
+        result = await newsAPI.create(payload)
+      }
+      
+      console.log('Result:', result)
+      await fetchNews()
+      setShowForm(false)
+      setEditingId(null)
+      setNewArticle({ title: '', slug: '', excerpt: '', body: '', category: 'GENERAL', status: 'DRAFT', isFeatured: false, imageUrl: '' })
+      alert(editingId ? 'Article updated!' : 'Article added!')
+    } catch (error: any) {
+      console.error('Error:', error)
+      alert(error.message || 'Failed to save article')
     } finally {
       setSaving(false)
     }
@@ -135,7 +160,7 @@ export default function AdminNewsPage() {
             </label>
           </div>
           <div className="flex gap-3">
-            <button onClick={handleSave} disabled={saving} className="bg-[#2da86a] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#1a6b42] transition-colors disabled:opacity-70">{saving ? 'Saving...' : editingId ? 'Update Article' : 'Save Article'} ✓</button>
+            <button onClick={handleSave} disabled={saving} className="bg-[#2da86a] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#1a6b42] transition-colors disabled:opacity-70">{saving ? 'Connecting to server... Please wait' : editingId ? 'Update Article' : 'Save Article'} ✓</button>
             <button onClick={() => { setShowForm(false); setEditingId(null); setNewArticle({ title: '', slug: '', excerpt: '', body: '', category: 'GENERAL', status: 'DRAFT', isFeatured: false, imageUrl: '' }) }} className="bg-[#F8F9FC] text-[#6B7A99] px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#EEF1F6] transition-colors">Cancel</button>
           </div>
         </div>

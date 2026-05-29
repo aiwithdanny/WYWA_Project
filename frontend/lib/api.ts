@@ -10,9 +10,26 @@ const API_URL = getApiUrl()
 
 export { API_URL }
 
+// ─── WAKE UP BACKEND (Render free tier) ───
+async function wakeUpBackend(): Promise<void> {
+  try {
+    await fetch(`${API_URL}/api/health`, { 
+      method: 'GET',
+      signal: AbortSignal.timeout(5000)
+    })
+  } catch {
+    // Ignore errors - just trying to wake up
+  }
+}
+
 // ─── GENERIC FETCH ───
 async function fetchAPI(endpoint: string, options?: RequestInit): Promise<any> {
   try {
+    // Wake up backend for write operations
+    if (options?.method && ['POST', 'PUT', 'DELETE'].includes(options.method)) {
+      await wakeUpBackend()
+    }
+    
     const res = await fetch(`${API_URL}${endpoint}`, {
       headers: {
         'Content-Type': 'application/json',
@@ -22,12 +39,12 @@ async function fetchAPI(endpoint: string, options?: RequestInit): Promise<any> {
     })
     const data = await res.json()
     if (!res.ok) {
-      throw new Error(data.message || data.error || `HTTP ${res.status}`)
+      throw new Error(data.message || data.error || `HTTP ${res.status}: ${JSON.stringify(data)}`)
     }
     return data
   } catch (error: any) {
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      throw new Error('Connection error — make sure backend is running on port 8000')
+      throw new Error('Cannot connect to server. Please try again in 30 seconds.')
     }
     throw error
   }

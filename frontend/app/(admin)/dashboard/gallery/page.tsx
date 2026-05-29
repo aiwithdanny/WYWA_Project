@@ -34,22 +34,40 @@ export default function AdminGalleryPage() {
   )
 
   const handleSave = async () => {
+    // Validate before sending
+    if (!newItem.albumName || !newItem.albumName.trim()) {
+      alert('Album name is required')
+      return
+    }
+    
     setSaving(true)
     try {
-      if (editingId) {
-        await galleryAPI.update(editingId, newItem)
-        await fetchGallery()
-        setShowForm(false)
-        setEditingId(null)
-        setNewItem({ albumName: '', imageUrl: '', caption: '', year: new Date().getFullYear(), isFeatured: false })
-      } else {
-        await galleryAPI.create(newItem)
-        await fetchGallery()
-        setShowForm(false)
-        setNewItem({ albumName: '', imageUrl: '', caption: '', year: new Date().getFullYear(), isFeatured: false })
+      const payload = {
+        albumName: newItem.albumName.trim(),
+        imageUrl: newItem.imageUrl?.trim() || '',
+        caption: newItem.caption?.trim() || null,
+        year: newItem.year || new Date().getFullYear(),
+        isFeatured: newItem.isFeatured || false,
       }
-    } catch (err: any) {
-      alert(err.message || 'Connection error — make sure backend is running on port 8000')
+      
+      console.log('Sending payload:', payload)
+      
+      let result
+      if (editingId) {
+        result = await galleryAPI.update(editingId, payload)
+      } else {
+        result = await galleryAPI.create(payload)
+      }
+      
+      console.log('Result:', result)
+      await fetchGallery()
+      setShowForm(false)
+      setEditingId(null)
+      setNewItem({ albumName: '', imageUrl: '', caption: '', year: new Date().getFullYear(), isFeatured: false })
+      alert(editingId ? 'Item updated!' : 'Item added!')
+    } catch (error: any) {
+      console.error('Error:', error)
+      alert(error.message || 'Failed to save gallery item')
     } finally {
       setSaving(false)
     }
@@ -113,7 +131,7 @@ export default function AdminGalleryPage() {
             Featured on homepage
           </label>
           <div className="flex gap-3">
-            <button onClick={handleSave} disabled={saving} className="bg-[#2da86a] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#1a6b42] transition-colors disabled:opacity-70">{saving ? 'Saving...' : editingId ? 'Update Item' : 'Save Item'} ✓</button>
+            <button onClick={handleSave} disabled={saving} className="bg-[#2da86a] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#1a6b42] transition-colors disabled:opacity-70">{saving ? 'Connecting to server... Please wait' : editingId ? 'Update Item' : 'Save Item'} ✓</button>
             <button onClick={() => { setShowForm(false); setEditingId(null); setNewItem({ albumName: '', imageUrl: '', caption: '', year: new Date().getFullYear(), isFeatured: false }) }} className="bg-[#F8F9FC] text-[#6B7A99] px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#EEF1F6] transition-colors">Cancel</button>
           </div>
         </div>

@@ -34,22 +34,44 @@ export default function AdminProgramsPage() {
   )
 
   const handleSave = async () => {
+    // Validate before sending
+    if (!newProgram.title || !newProgram.title.trim()) {
+      alert('Title is required')
+      return
+    }
+    
     setSaving(true)
     try {
-      if (editingId) {
-        await programsAPI.update(editingId, newProgram)
-        await fetchPrograms()
-        setShowForm(false)
-        setEditingId(null)
-        setNewProgram({ title: '', slug: '', description: '', category: 'EDUCATION', status: 'DRAFT', beneficiaries: 0, location: '', startDate: '', imageUrl: '' })
-      } else {
-        await programsAPI.create(newProgram)
-        await fetchPrograms()
-        setShowForm(false)
-        setNewProgram({ title: '', slug: '', description: '', category: 'EDUCATION', status: 'DRAFT', beneficiaries: 0, location: '', startDate: '', imageUrl: '' })
+      const payload = {
+        title: newProgram.title.trim(),
+        slug: newProgram.slug?.trim() || newProgram.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now(),
+        description: newProgram.description?.trim() || '',
+        category: newProgram.category || 'OTHER',
+        status: newProgram.status || 'PUBLISHED',
+        beneficiaries: newProgram.beneficiaries || 0,
+        location: newProgram.location?.trim() || null,
+        startDate: newProgram.startDate || null,
+        imageUrl: newProgram.imageUrl?.trim() || null,
       }
-    } catch (err: any) {
-      alert(err.message || 'Connection error — make sure backend is running on port 8000')
+      
+      console.log('Sending payload:', payload)
+      
+      let result
+      if (editingId) {
+        result = await programsAPI.update(editingId, payload)
+      } else {
+        result = await programsAPI.create(payload)
+      }
+      
+      console.log('Result:', result)
+      await fetchPrograms()
+      setShowForm(false)
+      setEditingId(null)
+      setNewProgram({ title: '', slug: '', description: '', category: 'EDUCATION', status: 'DRAFT', beneficiaries: 0, location: '', startDate: '', imageUrl: '' })
+      alert(editingId ? 'Program updated!' : 'Program added!')
+    } catch (error: any) {
+      console.error('Error:', error)
+      alert(error.message || 'Failed to save program')
     } finally {
       setSaving(false)
     }
@@ -166,7 +188,7 @@ export default function AdminProgramsPage() {
             />
           </div>
           <div className="flex gap-3">
-            <button onClick={handleSave} disabled={saving} className="bg-[#2da86a] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#1a6b42] transition-colors disabled:opacity-70">{saving ? 'Saving...' : editingId ? 'Update Program' : 'Save Program'} ✓</button>
+            <button onClick={handleSave} disabled={saving} className="bg-[#2da86a] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#1a6b42] transition-colors disabled:opacity-70">{saving ? 'Connecting to server... Please wait' : editingId ? 'Update Program' : 'Save Program'} ✓</button>
             <button onClick={() => { setShowForm(false); setEditingId(null); setNewProgram({ title: '', slug: '', description: '', category: 'EDUCATION', status: 'DRAFT', beneficiaries: 0, location: '', startDate: '', imageUrl: '' }) }} className="bg-[#F8F9FC] text-[#6B7A99] px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#EEF1F6] transition-colors">Cancel</button>
           </div>
         </div>
