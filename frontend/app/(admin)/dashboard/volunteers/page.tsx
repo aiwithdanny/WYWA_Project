@@ -1,65 +1,67 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { volunteersAPI } from '@/lib/api'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:10000'
 
 export default function AdminVolunteersPage() {
   const [volunteers, setVolunteers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('All')
+  const [token, setToken] = useState('')
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem('wywa_token')
+    if (storedToken) setToken(storedToken)
+  }, [])
 
   const fetchVolunteers = async () => {
     try {
-      const data = await volunteersAPI.getAll()
+      const headers: any = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      
+      const res = await fetch(`${API_URL}/api/volunteers`, { headers })
+      if (res.status === 401) {
+        alert('Session expired. Please login again.')
+        return
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
       setVolunteers(data.volunteers || [])
     } catch (err: any) {
-      alert(err.message || 'Connection error — make sure backend is running on port 8000')
+      alert(err.message || 'Connection error')
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchVolunteers()
-  }, [])
+    if (token) fetchVolunteers()
+  }, [token])
 
-  const filtered = volunteers.filter((v: any) => {
-    const matchesSearch = v.name.toLowerCase().includes(search.toLowerCase()) || v.email.toLowerCase().includes(search.toLowerCase())
+  const updateStatus = async (id: string, status: string) => {
+    try {
+      const headers: any = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+      await fetch(`${API_URL}/api/volunteers/${id}`, { method: 'PUT', headers, body: JSON.stringify({ status }) })
+      await fetchVolunteers()
+    } catch (err: any) {
+      alert(err.message || 'Connection error')
+    }
+  }
+
+  const filtered = volunteers.filter(v => {
+    const matchesSearch = v.name?.toLowerCase().includes(search.toLowerCase()) || v.email?.toLowerCase().includes(search.toLowerCase())
     const matchesFilter = filter === 'All' ? true : v.status === filter
     return matchesSearch && matchesFilter
   })
-
-  const handleStatusChange = async (id: string, status: string) => {
-    try {
-      await volunteersAPI.update(id, { status })
-      await fetchVolunteers()
-    } catch (err: any) {
-      alert(err.message || 'Connection error — make sure backend is running on port 8000')
-    }
-  }
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this volunteer application?')) return
-    try {
-      await volunteersAPI.delete(id)
-      await fetchVolunteers()
-    } catch (err: any) {
-      alert(err.message || 'Connection error — make sure backend is running on port 8000')
-    }
-  }
 
   if (loading) return <div className="text-center py-20 text-[#6B7A99]">Loading volunteers...</div>
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-[#0A1628]" style={{ fontFamily: 'Playfair Display, serif' }}>Volunteers Manager</h1>
-          <p className="text-[#6B7A99] text-sm mt-1">Review and manage volunteer applications</p>
-        </div>
-        <div className="bg-[#0A1628] text-white px-5 py-2.5 rounded-xl text-sm font-semibold">
-          Total: {volunteers.length}
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-[#0A1628]">Volunteers Manager</h1>
+        <p className="text-[#6B7A99] text-sm mt-1">Manage volunteer applications</p>
       </div>
 
       <div className="flex gap-2 flex-wrap">
@@ -80,34 +82,22 @@ export default function AdminVolunteersPage() {
         <table className="w-full">
           <thead>
             <tr className="bg-[#0A1628] text-white">
-              {['Name', 'Area', 'Availability', 'Skills', 'Status', 'Date', 'Actions'].map(h => (
+              {['Name', 'Email', 'Phone', 'Area', 'Status', 'Applied Date', 'Actions'].map(h => (
                 <th key={h} className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {filtered.map((vol: any, i: number) => (
-              <tr key={vol.id} className={`border-b border-[#EEF1F6] hover:bg-[#F8F9FC] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[#FAFBFD]'}`}>
+            {filtered.map((vol, i) => (
+              <tr key={vol.id} className={`border-b border-[#EEF1F6] hover:bg-[#F8F9FC] ${i % 2 === 0 ? 'bg-white' : 'bg-[#FAFBFD]'}`}>
+                <td className="px-6 py-4"><p className="font-medium text-[#0A1628] text-sm">{vol.name}</p></td>
+                <td className="px-6 py-4 text-sm text-[#6B7A99]">{vol.email}</td>
+                <td className="px-6 py-4 text-sm text-[#6B7A99]">{vol.phone}</td>
+                <td className="px-6 py-4 text-xs text-[#6B7A99]">{vol.area}</td>
                 <td className="px-6 py-4">
-                  <p className="font-medium text-[#0A1628] text-sm">{vol.name}</p>
-                  <p className="text-xs text-[#6B7A99]">{vol.email}</p>
-                  <p className="text-xs text-[#6B7A99]">{vol.phone}</p>
-                </td>
-                <td className="px-6 py-4 text-sm text-[#6B7A99]">{vol.area}</td>
-                <td className="px-6 py-4 text-sm text-[#6B7A99]">{vol.availability}</td>
-                <td className="px-6 py-4">
-                  <div className="flex flex-wrap gap-1">
-                    {(vol.skills || []).slice(0, 3).map((s: string, idx: number) => (
-                      <span key={idx} className="text-[10px] bg-[#EEF1F6] text-[#3D4A63] px-2 py-0.5 rounded-full">{s}</span>
-                    ))}
-                    {(vol.skills || []).length > 3 && <span className="text-[10px] text-[#6B7A99]">+{(vol.skills || []).length - 3}</span>}
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <select value={vol.status} onChange={e => handleStatusChange(vol.id, e.target.value)}
+                  <select value={vol.status} onChange={e => updateStatus(vol.id, e.target.value)}
                     className={`text-xs font-semibold px-3 py-1 rounded-full border-0 cursor-pointer ${
-                      vol.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
-                      vol.status === 'APPROVED' ? 'bg-blue-100 text-blue-700' :
+                      vol.status === 'ACTIVE' || vol.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
                       vol.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
                       'bg-red-100 text-red-700'
                     }`}>
@@ -115,12 +105,11 @@ export default function AdminVolunteersPage() {
                     <option value="APPROVED">APPROVED</option>
                     <option value="ACTIVE">ACTIVE</option>
                     <option value="REJECTED">REJECTED</option>
-                    <option value="INACTIVE">INACTIVE</option>
                   </select>
                 </td>
-                <td className="px-6 py-4 text-sm text-[#6B7A99]">{vol.createdAt?.split('T')[0]}</td>
+                <td className="px-6 py-4 text-sm text-[#6B7A99]">{new Date(vol.createdAt).toLocaleDateString()}</td>
                 <td className="px-6 py-4">
-                  <button onClick={() => handleDelete(vol.id)} className="text-xs bg-red-50 hover:bg-red-500 hover:text-white text-red-500 px-3 py-1.5 rounded-lg transition-colors font-medium">Delete</button>
+                  <button onClick={() => updateStatus(vol.id, 'REJECTED')} className="text-xs bg-red-50 hover:bg-red-500 hover:text-white text-red-500 px-3 py-1.5 rounded-lg transition-colors">Reject</button>
                 </td>
               </tr>
             ))}

@@ -1,30 +1,47 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { donationsAPI } from '@/lib/api'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:10000'
 
 export default function AdminDonationsPage() {
   const [donations, setDonations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('All')
+  const [token, setToken] = useState('')
+
+  // Get token from localStorage
+  useEffect(() => {
+    const storedToken = localStorage.getItem('wywa_token')
+    if (storedToken) setToken(storedToken)
+  }, [])
 
   const fetchDonations = async () => {
     try {
-      const data = await donationsAPI.getAll()
+      const headers: any = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      
+      const res = await fetch(`${API_URL}/api/donations`, { headers })
+      if (res.status === 401) {
+        alert('Session expired. Please login again.')
+        return
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
       setDonations(data.donations || [])
     } catch (err: any) {
-      alert(err.message || 'Connection error — make sure backend is running on port 8000')
+      alert(err.message || 'Connection error — make sure backend is running')
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchDonations()
-  }, [])
+    if (token) fetchDonations()
+  }, [token])
 
   const filtered = donations.filter((d: any) => {
-    const matchesSearch = d.donorName.toLowerCase().includes(search.toLowerCase()) || d.email.toLowerCase().includes(search.toLowerCase())
+    const matchesSearch = d.donorName?.toLowerCase().includes(search.toLowerCase()) || d.email?.toLowerCase().includes(search.toLowerCase())
     const matchesFilter = filter === 'All' ? true : d.status === filter
     return matchesSearch && matchesFilter
   })
@@ -33,20 +50,22 @@ export default function AdminDonationsPage() {
 
   const handleStatusChange = async (id: string, status: string) => {
     try {
-      await donationsAPI.update(id, { status })
+      const headers: any = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+      await fetch(`${API_URL}/api/donations/${id}`, { method: 'PUT', headers, body: JSON.stringify({ status }) })
       await fetchDonations()
     } catch (err: any) {
-      alert(err.message || 'Connection error — make sure backend is running on port 8000')
+      alert(err.message || 'Connection error')
     }
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this donation record?')) return
     try {
-      await donationsAPI.delete(id)
+      const headers: any = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+      await fetch(`${API_URL}/api/donations/${id}`, { method: 'DELETE', headers })
       await fetchDonations()
     } catch (err: any) {
-      alert(err.message || 'Connection error — make sure backend is running on port 8000')
+      alert(err.message || 'Connection error')
     }
   }
 

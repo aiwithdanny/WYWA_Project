@@ -187,7 +187,7 @@ app.post('/api/programs', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (r
     })
     
     res.status(201).json({ program, message: 'Program created successfully' })
-  } catch (error: any) {
+  } catch (error) {
     console.error('POST /api/programs error:', error)
     res.status(500).json({ 
       error: 'Failed to create program',
@@ -263,7 +263,7 @@ app.post('/api/events', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req
     })
     
     res.status(201).json({ event, message: 'Event created successfully' })
-  } catch (error: any) {
+  } catch (error) {
     console.error('POST /api/events error:', error)
     res.status(500).json({ 
       error: 'Failed to create event',
@@ -352,7 +352,7 @@ app.post('/api/news', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, 
     })
     
     res.status(201).json({ article, message: 'Article created successfully' })
-  } catch (error: any) {
+  } catch (error) {
     console.error('POST /api/news error:', error)
     res.status(500).json({ 
       error: 'Failed to create article',
@@ -422,7 +422,7 @@ app.post('/api/team', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, 
     
     console.log('Created member:', member)
     res.status(201).json({ member, message: 'Team member added successfully' })
-  } catch (error: any) {
+  } catch (error) {
     console.error('POST /api/team error:', error)
     res.status(500).json({ 
       error: 'Failed to create team member',
@@ -486,7 +486,7 @@ app.post('/api/gallery', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (re
     })
     
     res.status(201).json({ item, message: 'Gallery item added successfully' })
-  } catch (error: any) {
+  } catch (error) {
     console.error('POST /api/gallery error:', error)
     res.status(500).json({ 
       error: 'Failed to add gallery item',
@@ -865,3 +865,5 @@ app.listen(PORT, () => {
 })
 
 module.exports = app
+
+
