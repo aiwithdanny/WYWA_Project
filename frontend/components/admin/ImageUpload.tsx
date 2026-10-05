@@ -1,5 +1,6 @@
 'use client'
 import { useState, useRef } from 'react'
+import { getApiUrl } from '@/lib/api'
 
 interface ImageUploadProps {
   value: string
@@ -11,14 +12,6 @@ interface ImageUploadProps {
 function getToken() {
   if (typeof window !== 'undefined') return localStorage.getItem('wywa_token')
   return null
-}
-
-function getApiUrl() {
-  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    return 'https://wywa-backend.onrender.com'
-  }
-  return 'http://localhost:8000'
 }
 
 export default function ImageUpload({ value, onChange, folder = 'wywa/general', label = 'Upload Image' }: ImageUploadProps) {

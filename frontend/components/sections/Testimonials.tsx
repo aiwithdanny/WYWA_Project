@@ -1,4 +1,7 @@
-const testimonials = [
+'use client'
+import { useSiteSettings } from '@/lib/useSiteSettings'
+
+const defaultTestimonials = [
   {
     quote: "WYWA has transformed our entire village. The clean water project alone has saved countless lives. We are forever grateful for their tireless work.",
     name: 'Elder Gul Hassan',
@@ -20,6 +23,13 @@ const testimonials = [
 ]
 
 export default function Testimonials() {
+  const settings = useSiteSettings()
+  let testimonials = defaultTestimonials
+  try {
+    const raw = settings.testimonials
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    if (Array.isArray(parsed) && parsed.length > 0) testimonials = parsed
+  } catch { /* keep defaults */ }
   return (
     <section className="bg-white py-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

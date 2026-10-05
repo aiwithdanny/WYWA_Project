@@ -2,6 +2,7 @@ const express = require('express')
 const cors = require('cors')
 const helmet = require('helmet')
 const morgan = require('morgan')
+const rateLimit = require('express-rate-limit')
 const dotenv = require('dotenv')
 const path = require('path')
 const bcrypt = require('bcryptjs')
@@ -13,7 +14,11 @@ dotenv.config({ path: path.resolve(__dirname, '.env') })
 
 const app = express()
 const PORT = process.env.PORT || 8000
-const JWT_SECRET = process.env.JWT_SECRET || 'wywa-local-secret-key-minimum-32-chars'
+const JWT_SECRET = process.env.JWT_SECRET
+if (!JWT_SECRET) {
+  console.error('❌ FATAL: JWT_SECRET environment variable is required. Set it in backend/.env (see backend/.env.example)')
+  process.exit(1)
+}
 
 // ─── PRISMA ───
 let prisma = null
@@ -29,15 +34,19 @@ try {
 // Test connection on startup
 prisma.$connect()
   .then(() => console.log('✅ Database connected successfully'))
-  .catch((err) => console.error('❌ Database connection failed:', err))
+  .catch((err) => {
+    console.error('❌ FATAL: Database connection failed:', err.message || err)
+    process.exit(1)
+  })
 
 // Graceful shutdown
-process.on('beforeExit', async () => {
-  await prisma.$disconnect()
-})
-
-// ─── HELPERS ───
-const generateId = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+const gracefulShutdown = async (signal) => {
+  console.log(`\n${signal} received — closing database connection...`)
+  try { await prisma.$disconnect() } catch (e) { /* already closed */ }
+  process.exit(0)
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 
 const protect = async (req, res, next) => {
   try {
@@ -62,30 +71,56 @@ const restrictTo = (...roles) => (req, res, next) => {
   next()
 }
 
+// Whitelist body fields (prevents mass-assignment of id/createdAt/etc.)
+const pick = (obj, keys) => {
+  const out = {}
+  for (const k of keys) if (obj[k] !== undefined) out[k] = obj[k]
+  return out
+}
+
+const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim())
+
 // ─── MIDDLEWARE ───
 app.use(helmet())
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'https://wywa-project.vercel.app',
+  process.env.FRONTEND_URL,
+  process.env.CORS_ORIGIN,
+].filter(Boolean)
+
 app.use(cors({
   origin: function(origin, callback) {
-    const allowed = [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'https://wywa.vercel.app',
-      process.env.FRONTEND_URL,
-      process.env.CORS_ORIGIN,
-      process.env.NEXTAUTH_URL,
-    ].filter(Boolean)
-    if (!origin || allowed.includes(origin) || allowed.some(a => origin?.startsWith(a))) {
-      callback(null, true)
-    } else {
-      callback(null, true) // Allow all for development
-    }
+    // Non-browser / same-origin requests carry no Origin header
+    if (!origin) return callback(null, true)
+    if (allowedOrigins.includes(origin)) return callback(null, true)
+    callback(new Error('Not allowed by CORS'))
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }))
-app.use(morgan('dev'))
-app.use(express.json({ limit: '10mb' }))
+
+// ─── RATE LIMITING ───
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // 20 login attempts per IP per window
+  message: { status: 'fail', message: 'Too many login attempts, please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 600, // 600 requests per IP per window
+  message: { status: 'fail', message: 'Too many requests, please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+app.use('/api/auth/login', authLimiter)
+app.use('/api/', apiLimiter)
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'))
+app.use(express.json({ limit: '1mb' }))
 app.use(express.urlencoded({ extended: true }))
 
 // ─── MULTER CONFIG ───
@@ -126,7 +161,7 @@ app.post('/api/auth/login', async (req, res) => {
   if (!user) return res.status(401).json({ status: 'fail', message: 'Invalid credentials' })
   const valid = await bcrypt.compare(password, user.passwordHash)
   if (!valid) return res.status(401).json({ status: 'fail', message: 'Invalid credentials' })
-  const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' })
+  const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' })
   res.json({
     token,
     user: { id: user.id, name: user.name, email: user.email, role: user.role }
@@ -160,7 +195,6 @@ app.get('/api/programs/:id', async (req, res) => {
 
 app.post('/api/programs', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
   try {
-    console.log('POST /api/programs body:', req.body)
     const { title, slug, description, category, status, beneficiaries, location, startDate, isFeatured, imageUrl } = req.body
     
     if (!title || !title.trim()) {
@@ -189,16 +223,13 @@ app.post('/api/programs', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (r
     res.status(201).json({ program, message: 'Program created successfully' })
   } catch (error) {
     console.error('POST /api/programs error:', error)
-    res.status(500).json({ 
-      error: 'Failed to create program',
-      details: error.message 
-    })
+    res.status(500).json({ status: 'error', message: 'Failed to create program' })
   }
 })
 
 app.put('/api/programs/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
   try {
-    const program = await prisma.program.update({ where: { id: req.params.id }, data: req.body })
+    const program = await prisma.program.update({ where: { id: req.params.id }, data: pick(req.body, ['title','slug','description','category','status','beneficiaries','location','startDate','imageUrl','isFeatured']) })
     res.json({ status: 'success', program })
   } catch {
     res.status(404).json({ status: 'fail', message: 'Program not found' })
@@ -236,7 +267,6 @@ app.get('/api/events/:id', async (req, res) => {
 
 app.post('/api/events', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
   try {
-    console.log('POST /api/events body:', req.body)
     const { title, slug, description, date, location, isPublished, imageUrl } = req.body
     
     if (!title || !title.trim()) {
@@ -265,16 +295,13 @@ app.post('/api/events', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req
     res.status(201).json({ event, message: 'Event created successfully' })
   } catch (error) {
     console.error('POST /api/events error:', error)
-    res.status(500).json({ 
-      error: 'Failed to create event',
-      details: error.message 
-    })
+    res.status(500).json({ status: 'error', message: 'Failed to create event' })
   }
 })
 
 app.put('/api/events/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
   try {
-    const data = { ...req.body }
+    const data = pick(req.body, ['title','slug','description','date','location','isPublished','imageUrl'])
     if (data.date) data.date = new Date(data.date)
     const event = await prisma.event.update({ where: { id: req.params.id }, data })
     res.json({ status: 'success', event })
@@ -298,6 +325,9 @@ app.post('/api/events/:id/register', async (req, res) => {
   if (!event) return res.status(404).json({ status: 'fail', message: 'Event not found' })
   const { name, email, phone, message } = req.body
   if (!name || !email || !phone) return res.status(400).json({ status: 'fail', message: 'Name, email and phone required' })
+  if (!isValidEmail(email)) return res.status(400).json({ status: 'fail', message: 'Please provide a valid email address' })
+  const existingReg = await prisma.eventRegistration.findFirst({ where: { eventId: event.id, email } })
+  if (existingReg) return res.status(409).json({ status: 'fail', message: 'This email is already registered for the event' })
   const reg = await prisma.eventRegistration.create({
     data: { eventId: event.id, name, email, phone, message: message || '', status: 'PENDING' }
   })
@@ -326,7 +356,6 @@ app.get('/api/news/:id', async (req, res) => {
 
 app.post('/api/news', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
   try {
-    console.log('POST /api/news body:', req.body)
     const { title, slug, excerpt, body, category, status, isFeatured, publishedAt, imageUrl } = req.body
     
     if (!title || !title.trim()) {
@@ -354,16 +383,13 @@ app.post('/api/news', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, 
     res.status(201).json({ article, message: 'Article created successfully' })
   } catch (error) {
     console.error('POST /api/news error:', error)
-    res.status(500).json({ 
-      error: 'Failed to create article',
-      details: error.message 
-    })
+    res.status(500).json({ status: 'error', message: 'Failed to create article' })
   }
 })
 
 app.put('/api/news/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
   try {
-    const data = { ...req.body }
+    const data = pick(req.body, ['title','slug','excerpt','body','category','status','isFeatured','publishedAt','imageUrl'])
     if (data.publishedAt) data.publishedAt = new Date(data.publishedAt)
     const article = await prisma.news.update({ where: { id: req.params.id }, data })
     res.json({ status: 'success', news: article })
@@ -397,7 +423,6 @@ app.get('/api/team/:id', async (req, res) => {
 
 app.post('/api/team', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
   try {
-    console.log('POST /api/team body:', req.body)
     const { name, role, bio, email, phone, orderIndex, imageUrl } = req.body
     
     if (!name || !name.trim()) {
@@ -420,20 +445,16 @@ app.post('/api/team', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, 
       }
     })
     
-    console.log('Created member:', member)
     res.status(201).json({ member, message: 'Team member added successfully' })
   } catch (error) {
     console.error('POST /api/team error:', error)
-    res.status(500).json({ 
-      error: 'Failed to create team member',
-      details: error.message 
-    })
+    res.status(500).json({ status: 'error', message: 'Failed to create team member' })
   }
 })
 
 app.put('/api/team/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
   try {
-    const member = await prisma.teamMember.update({ where: { id: req.params.id }, data: req.body })
+    const member = await prisma.teamMember.update({ where: { id: req.params.id }, data: pick(req.body, ['name','role','bio','email','phone','orderIndex','imageUrl','isActive']) })
     res.json({ status: 'success', team: member })
   } catch {
     res.status(404).json({ status: 'fail', message: 'Member not found' })
@@ -468,7 +489,6 @@ app.get('/api/gallery/:id', async (req, res) => {
 
 app.post('/api/gallery', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
   try {
-    console.log('POST /api/gallery body:', req.body)
     const { albumName, imageUrl, caption, year, isFeatured } = req.body
     
     if (!albumName || !albumName.trim()) {
@@ -488,16 +508,13 @@ app.post('/api/gallery', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (re
     res.status(201).json({ item, message: 'Gallery item added successfully' })
   } catch (error) {
     console.error('POST /api/gallery error:', error)
-    res.status(500).json({ 
-      error: 'Failed to add gallery item',
-      details: error.message 
-    })
+    res.status(500).json({ status: 'error', message: 'Failed to add gallery item' })
   }
 })
 
 app.put('/api/gallery/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
   try {
-    const item = await prisma.gallery.update({ where: { id: req.params.id }, data: req.body })
+    const item = await prisma.gallery.update({ where: { id: req.params.id }, data: pick(req.body, ['albumName','imageUrl','caption','year','isFeatured']) })
     res.json({ status: 'success', gallery: item })
   } catch {
     res.status(404).json({ status: 'fail', message: 'Image not found' })
@@ -520,6 +537,9 @@ app.post('/api/contact', async (req, res) => {
   const { name, email, phone, subject, message } = req.body
   if (!name || !email || !message) {
     return res.status(400).json({ status: 'fail', message: 'Name, email and message are required' })
+  }
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ status: 'fail', message: 'Please provide a valid email address' })
   }
   const msg = await prisma.message.create({
     data: { name, email, phone: phone || '', subject: subject || 'General', message, status: 'NEW', isRead: false, isReplied: false }
@@ -546,7 +566,7 @@ app.get('/api/contact/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async 
 
 app.put('/api/contact/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
   try {
-    const msg = await prisma.message.update({ where: { id: req.params.id }, data: req.body })
+    const msg = await prisma.message.update({ where: { id: req.params.id }, data: pick(req.body, ['name','email','phone','subject','message','status','isRead','isReplied']) })
     res.json({ status: 'success', message: msg })
   } catch {
     res.status(404).json({ status: 'fail', message: 'Message not found' })
@@ -566,13 +586,17 @@ app.delete('/api/contact/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), asy
 // VOLUNTEERS
 // ═══════════════════════════════════════════════════════════════
 app.post('/api/volunteers/apply', async (req, res) => {
-  const { name, email, phone, skills, availability, area, experience, motivation } = req.body
+  const { name, email, phone, address, skills, availability, area, experience, motivation } = req.body
   if (!name || !email || !phone) {
     return res.status(400).json({ status: 'fail', message: 'Name, email and phone are required' })
+  }
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ status: 'fail', message: 'Please provide a valid email address' })
   }
   const vol = await prisma.volunteer.create({
     data: {
       name, email, phone,
+      address: address || '',
       skills: skills || [],
       availability: availability || 'Flexible',
       area: area || 'OTHER',
@@ -599,7 +623,7 @@ app.get('/api/volunteers/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), asy
 
 app.put('/api/volunteers/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
   try {
-    const vol = await prisma.volunteer.update({ where: { id: req.params.id }, data: req.body })
+    const vol = await prisma.volunteer.update({ where: { id: req.params.id }, data: pick(req.body, ['name','email','phone','address','skills','availability','area','experience','motivation','status']) })
     res.json({ status: 'success', volunteer: vol })
   } catch {
     res.status(404).json({ status: 'fail', message: 'Volunteer not found' })
@@ -623,11 +647,18 @@ app.post('/api/donations/initiate', async (req, res) => {
   if (!donorName || !email || !amount) {
     return res.status(400).json({ status: 'fail', message: 'Donor name, email and amount are required' })
   }
+  const parsedAmount = parseFloat(amount)
+  if (!isFinite(parsedAmount) || parsedAmount <= 0) {
+    return res.status(400).json({ status: 'fail', message: 'Amount must be a positive number' })
+  }
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ status: 'fail', message: 'Please provide a valid email address' })
+  }
   const donation = await prisma.donation.create({
     data: {
       donorName, email,
       phone: req.body.phone || '',
-      amount: parseFloat(amount),
+      amount: parsedAmount,
       currency: currency || 'PKR',
       campaign: campaign || 'General Fund',
       paymentMethod: paymentMethod || 'BANK_TRANSFER',
@@ -657,7 +688,7 @@ app.get('/api/donations/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), asyn
 
 app.put('/api/donations/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
   try {
-    const donation = await prisma.donation.update({ where: { id: req.params.id }, data: req.body })
+    const donation = await prisma.donation.update({ where: { id: req.params.id }, data: pick(req.body, ['donorName','email','phone','amount','currency','campaign','paymentMethod','status','paymentRef','message','isAnonymous','receiptSent']) })
     res.json({ status: 'success', donation })
   } catch {
     res.status(404).json({ status: 'fail', message: 'Donation not found' })
@@ -679,6 +710,7 @@ app.delete('/api/donations/:id', protect, restrictTo('SUPER_ADMIN'), async (req,
 app.post('/api/newsletter/subscribe', async (req, res) => {
   const { email, name } = req.body
   if (!email) return res.status(400).json({ status: 'fail', message: 'Email is required' })
+  if (!isValidEmail(email)) return res.status(400).json({ status: 'fail', message: 'Please provide a valid email address' })
   const existing = await prisma.newsletter.findUnique({ where: { email } })
   if (existing) return res.status(200).json({ status: 'success', message: 'Already subscribed' })
   const sub = await prisma.newsletter.create({
@@ -813,7 +845,8 @@ app.delete('/api/users/:id', protect, restrictTo('SUPER_ADMIN'), async (req, res
 // ═══════════════════════════════════════════════════════════════
 // STATS / DASHBOARD
 // ═══════════════════════════════════════════════════════════════
-app.get('/api/stats', async (req, res) => {
+// Shared stats computation
+async function fetchStats() {
   const [programStats, donationAgg, volunteerStats, messageStats, eventStats, newsCount, teamCount, galleryCount, newsletterCount] = await Promise.all([
     prisma.program.findMany({ select: { beneficiaries: true, status: true } }),
     prisma.donation.aggregate({ _sum: { amount: true }, _count: true }),
@@ -825,7 +858,7 @@ app.get('/api/stats', async (req, res) => {
     prisma.gallery.count(),
     prisma.newsletter.count(),
   ])
-  const stats = {
+  return {
     beneficiaries: programStats.reduce((sum, p) => sum + (p.beneficiaries || 0), 0),
     activePrograms: programStats.filter(p => p.status === 'PUBLISHED').length,
     totalDonations: donationAgg._sum.amount || 0,
@@ -841,6 +874,18 @@ app.get('/api/stats', async (req, res) => {
     galleryItems: galleryCount,
     newsletterSubscribers: newsletterCount,
   }
+}
+
+// Public impact stats for the homepage (no internal operational metrics)
+app.get('/api/stats', async (req, res) => {
+  const stats = await fetchStats()
+  const { messagesUnread, messagesTotal, newsletterSubscribers, ...publicStats } = stats
+  res.json({ status: 'success', stats: publicStats })
+})
+
+// Full operational stats (admin only)
+app.get('/api/admin/stats', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), async (req, res) => {
+  const stats = await fetchStats()
   res.json({ status: 'success', stats })
 })
 
