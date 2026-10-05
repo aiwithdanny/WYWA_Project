@@ -22,7 +22,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     Promise.all([
-      statsAPI.get().catch(() => null),
+      statsAPI.getAdmin().catch(() => null),
       messagesAPI.getAll().catch(() => null),
       donationsAPI.getAll().catch(() => null),
       programsAPI.getAll().catch(() => null),

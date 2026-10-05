@@ -8,7 +8,7 @@ const getApiUrl = () => {
 
 const API_URL = getApiUrl()
 
-export { API_URL }
+export { API_URL, getApiUrl }
 
 // ─── WAKE UP BACKEND (Render free tier) ───
 async function wakeUpBackend(): Promise<void> {
@@ -106,7 +106,7 @@ export const eventsAPI = {
     method: 'DELETE',
     headers: authHeaders(),
   }),
-  register: (data: any) => fetchAPI('/api/events/register', {
+  register: (id: string, data: any) => fetchAPI(`/api/events/${id}/register`, {
     method: 'POST',
     body: JSON.stringify(data),
   }),
@@ -222,10 +222,6 @@ export const donationsAPI = {
     method: 'POST',
     body: JSON.stringify(data),
   }),
-  verify: (data: any) => fetchAPI('/api/donations/verify', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
 }
 
 // ─── NEWSLETTER ───
@@ -254,6 +250,7 @@ export const settingsAPI = {
 // ─── STATS ───
 export const statsAPI = {
   get: () => fetchAPI('/api/stats'),
+  getAdmin: () => fetchAPI('/api/admin/stats', { headers: authHeaders() }),
 }
 
 // ─── REPORTS ───

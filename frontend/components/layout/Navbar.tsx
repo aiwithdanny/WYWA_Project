@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useSiteSettings } from '@/lib/useSiteSettings'
 
 const navLinks = [
   { name: 'Home',      href: '/' },
@@ -15,6 +16,7 @@ const navLinks = [
 ]
 
 export default function Navbar() {
+  const settings = useSiteSettings()
   const [scrolled, setScrolled]   = useState(false)
   const [menuOpen, setMenuOpen]   = useState(false)
 
@@ -42,10 +44,10 @@ export default function Navbar() {
             <div className="flex flex-col leading-tight">
               <span className="font-bold text-sm text-[#0A1628]"
                 style={{ fontFamily: 'Playfair Display, serif' }}>
-                Waziristan Youth
+                {settings.shortName === 'WYWA' ? 'Waziristan Youth' : settings.siteName}
               </span>
               <span className="text-[10px] text-[#6B7A99] uppercase tracking-widest">
-                Welfare Association
+                {settings.shortName === 'WYWA' ? 'Welfare Association' : ''}
               </span>
             </div>
           </Link>

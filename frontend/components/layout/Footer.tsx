@@ -3,8 +3,10 @@ import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { newsletterAPI } from '@/lib/api'
+import { useSiteSettings } from '@/lib/useSiteSettings'
 
 export default function Footer() {
+  const settings = useSiteSettings()
   const [email, setEmail] = useState('')
   const [subscribed, setSubscribed] = useState(false)
 
@@ -99,9 +101,9 @@ export default function Footer() {
           <div>
             <h4 className="text-white font-semibold text-sm mb-4">Contact</h4>
             <ul className="flex flex-col gap-3 text-sm text-white/40">
-              <li>📍 Wana, South Waziristan, KP, Pakistan</li>
-              <li>📧 info@wywa.org.pk</li>
-              <li>📞 +92-300-1234567</li>
+              <li>📍 {settings.address}</li>
+              <li>📧 {settings.email}</li>
+              <li>📞 {settings.phone}</li>
               <li>🌐 NGO Reg: KP-2010-0847</li>
             </ul>
           </div>
@@ -111,7 +113,7 @@ export default function Footer() {
         <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row
           justify-between items-center gap-4">
           <p className="text-xs text-white/30">
-            © 2026 Waziristan Youth Welfare Association. All rights reserved.
+            © {new Date().getFullYear()} {settings.siteName}. All rights reserved.
           </p>
           <p className="text-xs text-white/30">
             Built with ❤️ for the people of Waziristan

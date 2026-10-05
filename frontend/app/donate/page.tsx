@@ -19,6 +19,7 @@ export default function DonatePage() {
   const [campaign, setCampaign]   = useState('General Fund')
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading]     = useState(false)
+  const [error, setError]         = useState('')
 
   const finalAmount = custom ? parseInt(custom) : amount
 
@@ -28,6 +29,7 @@ export default function DonatePage() {
       return
     }
     setLoading(true)
+    setError('')
     try {
       await donationsAPI.initiate({
         donorName: name,
@@ -37,8 +39,8 @@ export default function DonatePage() {
         currency: 'PKR',
       })
       setSubmitted(true)
-    } catch (error) {
-      setSubmitted(true)
+    } catch (err: any) {
+      setError(err.message || 'Could not submit your donation. Please check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -180,6 +182,11 @@ export default function DonatePage() {
                       </div>
                     </div>
 
+                    {error && (
+                      <p className="text-red-600 text-sm mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                        {error}
+                      </p>
+                    )}
                     <button
                       onClick={handleDonate}
                       disabled={loading}

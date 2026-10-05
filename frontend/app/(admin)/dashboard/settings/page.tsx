@@ -7,6 +7,9 @@ export default function AdminSettingsPage() {
     siteName: 'Waziristan Youth Welfare Association',
     shortName: 'WYWA',
     tagline: 'Empowering Youth. Building Futures. Serving Waziristan.',
+    heroTagline: 'Serving the heart of Waziristan — one life at a time.',
+    heroDescription: 'The Waziristan Youth Welfare Association is dedicated to education, community development, disaster relief, and youth empowerment — creating lasting change for the people of Waziristan.',
+    estLine: 'Est. 2010 · Waziristan, Pakistan',
     email: 'info@wywa.org.pk',
     phone: '+92-300-1234567',
     whatsapp: '+92-300-1234567',
@@ -15,6 +18,7 @@ export default function AdminSettingsPage() {
     twitter: '',
     instagram: '',
     youtube: '',
+    testimonials: '',
     bankName: 'Habib Bank Limited',
     accountTitle: 'Waziristan Youth Welfare Association',
     accountNumber: '',
@@ -109,6 +113,22 @@ export default function AdminSettingsPage() {
         </div>
       </div>
 
+      {/* Homepage Content */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm">
+        <h2 className="font-bold text-[#0A1628] mb-4 pb-3
+          border-b border-[#EEF1F6]">
+          Homepage Content
+        </h2>
+        <div className="grid md:grid-cols-2 gap-4">
+          <Field label="Hero Tagline" k="heroTagline" />
+          <Field label="Hero Badge Line" k="estLine"
+            placeholder="e.g. Est. 2010 · Waziristan, Pakistan" />
+          <div className="md:col-span-2">
+            <Field label="Hero Description" k="heroDescription" />
+          </div>
+        </div>
+      </div>
+
       {/* Contact */}
       <div className="bg-white rounded-2xl p-6 shadow-sm">
         <h2 className="font-bold text-[#0A1628] mb-4 pb-3
@@ -141,6 +161,26 @@ export default function AdminSettingsPage() {
           <Field label="YouTube Channel URL" k="youtube"
             placeholder="https://youtube.com/@wywa" />
         </div>
+      </div>
+
+      {/* Testimonials (JSON array) */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm">
+        <h2 className="font-bold text-[#0A1628] mb-4 pb-3
+          border-b border-[#EEF1F6]">
+          Homepage Testimonials
+        </h2>
+        <p className="text-xs text-[#6B7A99] mb-3">
+          JSON array of quote objects. Leave empty to use the default testimonials.
+        </p>
+        <textarea
+          value={(settings as any).testimonials || ''}
+          onChange={e => setSettings({ ...settings, testimonials: e.target.value })}
+          placeholder='[{"quote":"...","name":"...","role":"...","initial":"A"}]'
+          rows={6}
+          className="w-full px-4 py-3 rounded-xl border border-[#EEF1F6]
+            text-sm font-mono focus:outline-none focus:border-[#1A4A8A]
+            bg-[#F8F9FC] transition-all"
+        />
       </div>
 
       {/* Payment */}

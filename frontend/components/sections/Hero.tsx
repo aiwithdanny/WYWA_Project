@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import fetchAPI from '@/lib/api'
+import { useSiteSettings } from '@/lib/useSiteSettings'
 
 interface HeroStat {
   num: number
@@ -58,6 +59,7 @@ function StatItem({ num, suffix, label }: { num: number; suffix: string; label: 
 }
 
 export default function Hero() {
+  const settings = useSiteSettings()
   const [stats, setStats] = useState<HeroStat[]>([
     { num: 0, suffix: '+', label: 'Lives Impacted' },
     { num: 0, suffix: '+', label: 'Active Programs' },
@@ -112,7 +114,7 @@ export default function Hero() {
             text-[#E8C96A] px-4 py-2 rounded-full text-xs
             font-medium tracking-widest uppercase">
             <span className="w-1.5 h-1.5 rounded-full bg-[#C8A84B] animate-pulse" />
-            Est. 2010 · Waziristan, Pakistan
+            {settings.estLine}
           </div>
 
           {/* Headline */}
@@ -129,14 +131,12 @@ export default function Hero() {
           {/* Tagline */}
           <p className="text-lg text-white/60 italic"
             style={{ fontFamily: 'Playfair Display, serif' }}>
-            "Serving the heart of Waziristan — one life at a time."
+            {`"${settings.heroTagline}"`}
           </p>
 
           {/* Description */}
           <p className="text-base text-white/50 max-w-lg leading-relaxed">
-            The Waziristan Youth Welfare Association is dedicated to education,
-            community development, disaster relief, and youth empowerment —
-            creating lasting change for the people of Waziristan.
+            {settings.heroDescription}
           </p>
 
           {/* Buttons */}
