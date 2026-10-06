@@ -1,8 +1,13 @@
-'use client'
-import { useState, useEffect } from 'react'
+import type { Metadata } from 'next'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
-import { newsAPI } from '@/lib/api'
+import { serverFetch } from '@/lib/server-api'
+
+export const metadata: Metadata = {
+  title: 'News & Blog — WYWA',
+  description:
+    'Stay updated with the latest stories, announcements, and impact reports from WYWA.',
+}
 
 const categoryMeta: any = {
   SUCCESS_STORIES:  { tag: 'bg-green-100 text-green-700', label: 'Success Story' },
@@ -13,31 +18,26 @@ const categoryMeta: any = {
   GENERAL:          { tag: 'bg-gray-100 text-gray-700', label: 'General' },
 }
 
-export default function NewsPage() {
-  const [news, setNews] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+async function getNews() {
+  const data = await serverFetch<any>('/api/news')
+  const items = data?.news || []
+  return items.map((n: any) => {
+    const meta = categoryMeta[n.category || 'GENERAL'] || categoryMeta.GENERAL
+    return {
+      category: meta.label,
+      date: n.publishedAt
+        ? new Date(n.publishedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        : new Date(n.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      title: n.title,
+      excerpt: n.excerpt || 'No excerpt available.',
+      tag: meta.tag,
+      readTime: '3 min read',
+    }
+  })
+}
 
-  useEffect(() => {
-    newsAPI.getAll()
-      .then(data => {
-        if (data.news && data.news.length > 0) {
-          const mapped = data.news.map((n: any) => {
-            const meta = categoryMeta[n.category || 'GENERAL'] || categoryMeta.GENERAL
-            return {
-              category: meta.label,
-              date: n.publishedAt ? new Date(n.publishedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : new Date(n.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-              title: n.title,
-              excerpt: n.excerpt || 'No excerpt available.',
-              tag: meta.tag,
-              readTime: '3 min read',
-            }
-          })
-          setNews(mapped)
-        }
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
-  }, [])
+export default async function NewsPage() {
+  const news = await getNews()
 
   return (
     <>
@@ -64,12 +64,7 @@ export default function NewsPage() {
 
         <section className="bg-[#F8F9FC] py-24">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="animate-spin w-8 h-8 border-4 border-[#1A4A8A] border-t-transparent rounded-full" />
-                <span className="ml-3 text-[#6B7A99]">Loading news...</span>
-              </div>
-            ) : news.length === 0 ? (
+            {news.length === 0 ? (
               <div className="text-center py-20 text-[#6B7A99]">
                 <p className="text-lg font-medium">No news articles available</p>
                 <p className="text-sm mt-2">Check back soon for updates.</p>

@@ -1,9 +1,14 @@
-'use client'
-import { useState, useEffect } from 'react'
+import type { Metadata } from 'next'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import Link from 'next/link'
-import { programsAPI } from '@/lib/api'
+import { serverFetch } from '@/lib/server-api'
+
+export const metadata: Metadata = {
+  title: 'Our Programs — WYWA',
+  description:
+    'From education to disaster relief — explore all active WYWA initiatives making a real difference in Waziristan.',
+}
 
 const categoryMeta: any = {
   EDUCATION:              { tag: 'Education',    icon: '🎓', color: '#1A4A8A', tagColor: 'bg-blue-100 text-blue-700' },
@@ -15,36 +20,29 @@ const categoryMeta: any = {
   OTHER:                  { tag: 'Other',        icon: '📋', color: '#6B7A99', tagColor: 'bg-gray-100 text-gray-700' },
 }
 
-export default function ProgramsPage() {
-  const [programs, setPrograms] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+async function getPrograms() {
+  const data = await serverFetch<any>('/api/programs')
+  const items = data?.programs || []
+  return items.map((p: any) => {
+    const meta = categoryMeta[p.category || 'OTHER']
+    return {
+      tag: meta?.tag || p.category,
+      icon: meta?.icon || '📋',
+      title: p.title,
+      desc: p.description || '',
+      stats: [
+        `${p.beneficiaries || 0}+ Beneficiaries`,
+        p.status === 'PUBLISHED' ? 'Active' : 'Draft',
+        p.location || 'Waziristan'
+      ],
+      color: meta?.color || '#6B7A99',
+      tagColor: meta?.tagColor || 'bg-gray-100 text-gray-700'
+    }
+  })
+}
 
-  useEffect(() => {
-    programsAPI.getAll()
-      .then(data => {
-        if (data.programs && data.programs.length > 0) {
-          const mapped = data.programs.map((p: any) => {
-            const meta = categoryMeta[p.category || 'OTHER']
-            return {
-              tag: meta?.tag || p.category,
-              icon: meta?.icon || '📋',
-              title: p.title,
-              desc: p.description || '',
-              stats: [
-                `${p.beneficiaries || 0}+ Beneficiaries`,
-                p.status === 'PUBLISHED' ? 'Active' : 'Draft',
-                p.location || 'Waziristan'
-              ],
-              color: meta?.color || '#6B7A99',
-              tagColor: meta?.tagColor || 'bg-gray-100 text-gray-700'
-            }
-          })
-          setPrograms(mapped)
-        }
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
-  }, [])
+export default async function ProgramsPage() {
+  const programs = await getPrograms()
 
   return (
     <>
@@ -73,12 +71,7 @@ export default function ProgramsPage() {
         {/* Programs Grid */}
         <section className="bg-[#F8F9FC] py-24">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="animate-spin w-8 h-8 border-4 border-[#1A4A8A] border-t-transparent rounded-full" />
-                <span className="ml-3 text-[#6B7A99]">Loading programs...</span>
-              </div>
-            ) : programs.length === 0 ? (
+            {programs.length === 0 ? (
               <div className="text-center py-20 text-[#6B7A99]">
                 <p className="text-lg font-medium">No programs available</p>
                 <p className="text-sm mt-2">Check back soon for updates.</p>

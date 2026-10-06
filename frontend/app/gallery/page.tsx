@@ -1,35 +1,34 @@
-'use client'
-import { useState, useEffect } from 'react'
+import type { Metadata } from 'next'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
-import fetchAPI from '@/lib/api'
+import { serverFetch } from '@/lib/server-api'
 
-export default function GalleryPage() {
-  const [albums, setAlbums] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+export const metadata: Metadata = {
+  title: 'Photo Gallery — WYWA',
+  description:
+    'A visual journey through WYWA programs, events, and community impact across Waziristan.',
+}
 
-  useEffect(() => {
-    fetchAPI('/api/gallery')
-      .then(data => {
-        if (data.gallery && data.gallery.length > 0) {
-          const colors = [
-            'from-[#1A4A8A] to-[#0A1628]', 'from-[#e0722a] to-[#8a3a10]',
-            'from-[#14a0a0] to-[#0a5050]', 'from-[#2da86a] to-[#1a6b42]',
-            'from-[#8250c8] to-[#4a2a80]', 'from-[#C8A84B] to-[#8a6e2a]',
-            'from-[#2563B0] to-[#0a2a60]', 'from-[#e0728a] to-[#8a2a40]',
-          ]
-          const mapped = data.gallery.map((g: any, i: number) => ({
-            title: g.albumName || g.caption || 'Gallery Item',
-            color: colors[i % colors.length],
-            imageUrl: g.imageUrl || '',
-            year: g.year || new Date().getFullYear(),
-          }))
-          setAlbums(mapped)
-        }
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
-  }, [])
+const colors = [
+  'from-[#1A4A8A] to-[#0A1628]', 'from-[#e0722a] to-[#8a3a10]',
+  'from-[#14a0a0] to-[#0a5050]', 'from-[#2da86a] to-[#1a6b42]',
+  'from-[#8250c8] to-[#4a2a80]', 'from-[#C8A84B] to-[#8a6e2a]',
+  'from-[#2563B0] to-[#0a2a60]', 'from-[#e0728a] to-[#8a2a40]',
+]
+
+async function getGallery() {
+  const data = await serverFetch<any>('/api/gallery')
+  const items = data?.gallery || []
+  return items.map((g: any, i: number) => ({
+    title: g.albumName || g.caption || 'Gallery Item',
+    color: colors[i % colors.length],
+    imageUrl: g.imageUrl || '',
+    year: g.year || new Date().getFullYear(),
+  }))
+}
+
+export default async function GalleryPage() {
+  const albums = await getGallery()
 
   return (
     <>
@@ -56,12 +55,7 @@ export default function GalleryPage() {
 
         <section className="bg-[#F8F9FC] py-24">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="animate-spin w-8 h-8 border-4 border-[#1A4A8A] border-t-transparent rounded-full" />
-                <span className="ml-3 text-[#6B7A99]">Loading gallery...</span>
-              </div>
-            ) : albums.length === 0 ? (
+            {albums.length === 0 ? (
               <div className="text-center py-20 text-[#6B7A99]">
                 <p className="text-lg font-medium">No photos in gallery</p>
                 <p className="text-sm mt-2">Check back soon for updates.</p>

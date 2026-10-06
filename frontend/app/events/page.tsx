@@ -1,8 +1,13 @@
-'use client'
-import { useState, useEffect } from 'react'
+import type { Metadata } from 'next'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
-import { eventsAPI } from '@/lib/api'
+import { serverFetch } from '@/lib/server-api'
+
+export const metadata: Metadata = {
+  title: 'Upcoming Events — WYWA',
+  description:
+    'Stay updated with WYWA latest events, programs, and community activities in Waziristan.',
+}
 
 interface EventType {
   date: string
@@ -54,28 +59,21 @@ function EventCard({ event }: { event: EventType }) {
   )
 }
 
-export default function EventsPage() {
-  const [events, setEvents] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+async function getEvents(): Promise<EventType[]> {
+  const data = await serverFetch<any>('/api/events')
+  const items = data?.events || []
+  return items.map((e: any) => ({
+    color: '#1A4A8A',
+    tag: 'bg-blue-100 text-blue-700',
+    date: e.date ? new Date(e.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '',
+    title: e.title,
+    desc: e.description || '',
+    location: e.location,
+  }))
+}
 
-  useEffect(() => {
-    eventsAPI.getAll()
-      .then(data => {
-        if (data.events && data.events.length > 0) {
-          const mapped = data.events.map((e: any) => ({
-            color: '#1A4A8A',
-            tag: 'bg-blue-100 text-blue-700',
-            date: e.date ? new Date(e.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '',
-            title: e.title,
-            desc: e.description || '',
-            location: e.location,
-          }))
-          setEvents(mapped)
-        }
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
-  }, [])
+export default async function EventsPage() {
+  const events = await getEvents()
 
   return (
     <>
@@ -104,12 +102,7 @@ export default function EventsPage() {
 
         <section className="bg-[#F8F9FC] py-24">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="animate-spin w-8 h-8 border-4 border-[#1A4A8A] border-t-transparent rounded-full" />
-                <span className="ml-3 text-[#6B7A99]">Loading events...</span>
-              </div>
-            ) : events.length === 0 ? (
+            {events.length === 0 ? (
               <div className="text-center py-20 text-[#6B7A99]">
                 <p className="text-lg font-medium">No upcoming events</p>
                 <p className="text-sm mt-2">Check back soon for updates.</p>

@@ -1,37 +1,36 @@
-'use client'
-import { useState, useEffect } from 'react'
+import type { Metadata } from 'next'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
-import { teamAPI } from '@/lib/api'
+import { serverFetch } from '@/lib/server-api'
 
-export default function TeamPage() {
-  const [team, setTeam] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+export const metadata: Metadata = {
+  title: 'Meet Our Team — WYWA',
+  description:
+    'Dedicated individuals committed to service, integrity, and community-first leadership at WYWA.',
+}
 
-  useEffect(() => {
-    teamAPI.getAll()
-      .then(data => {
-        if (data.team && data.team.length > 0) {
-          const colors = [
-            'from-[#1A4A8A] to-[#0A1628]', 'from-[#2da86a] to-[#1a6b42]',
-            'from-[#C8A84B] to-[#8a6e2a]', 'from-[#8250c8] to-[#4a2a80]',
-            'from-[#e0722a] to-[#8a3a10]', 'from-[#14a0a0] to-[#0a5050]',
-            'from-[#e0728a] to-[#8a2a40]', 'from-[#2563B0] to-[#0a2a60]',
-          ]
-          const mapped = data.team.map((t: any, i: number) => ({
-            name: t.name,
-            role: t.role,
-            initial: t.name.split(' ').map((n: string) => n[0]).join('').toUpperCase(),
-            bio: t.bio || '',
-            color: colors[i % colors.length],
-            imageUrl: t.imageUrl || '',
-          }))
-          setTeam(mapped)
-        }
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
-  }, [])
+const colors = [
+  'from-[#1A4A8A] to-[#0A1628]', 'from-[#2da86a] to-[#1a6b42]',
+  'from-[#C8A84B] to-[#8a6e2a]', 'from-[#8250c8] to-[#4a2a80]',
+  'from-[#e0722a] to-[#8a3a10]', 'from-[#14a0a0] to-[#0a5050]',
+  'from-[#e0728a] to-[#8a2a40]', 'from-[#2563B0] to-[#0a2a60]',
+]
+
+async function getTeam() {
+  const data = await serverFetch<any>('/api/team')
+  const items = data?.team || []
+  return items.map((t: any, i: number) => ({
+    name: t.name,
+    role: t.role,
+    initial: t.name.split(' ').map((n: string) => n[0]).join('').toUpperCase(),
+    bio: t.bio || '',
+    color: colors[i % colors.length],
+    imageUrl: t.imageUrl || '',
+  }))
+}
+
+export default async function TeamPage() {
+  const team = await getTeam()
 
   return (
     <>
@@ -58,12 +57,7 @@ export default function TeamPage() {
 
         <section className="bg-[#F8F9FC] py-24">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="animate-spin w-8 h-8 border-4 border-[#1A4A8A] border-t-transparent rounded-full" />
-                <span className="ml-3 text-[#6B7A99]">Loading team...</span>
-              </div>
-            ) : team.length === 0 ? (
+            {team.length === 0 ? (
               <div className="text-center py-20 text-[#6B7A99]">
                 <p className="text-lg font-medium">No team members listed</p>
                 <p className="text-sm mt-2">Check back soon for updates.</p>
