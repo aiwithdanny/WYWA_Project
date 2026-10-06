@@ -31,11 +31,11 @@ async function fetchAPI(endpoint: string, options?: RequestInit): Promise<any> {
     }
     
     const res = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
       headers: {
         'Content-Type': 'application/json',
         ...options?.headers,
       },
-      ...options,
     })
     const data = await res.json()
     if (!res.ok) {

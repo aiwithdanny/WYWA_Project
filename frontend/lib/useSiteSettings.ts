@@ -50,6 +50,13 @@ function loadSettings(): Promise<Record<string, any>> {
   return inflight
 }
 
+/** Clear the cached settings so the next load fetches fresh values.
+ * Call this after saving settings in the admin panel. */
+export function invalidateSettingsCache() {
+  cache = null
+  inflight = null
+}
+
 /** Live site settings from /api/settings (falls back to defaults offline). */
 export function useSiteSettings(): Record<string, any> {
   const [settings, setSettings] = useState<Record<string, any>>(cache || defaultSettings)

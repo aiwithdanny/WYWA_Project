@@ -2,6 +2,34 @@
 import { useState, useEffect } from 'react'
 import { settingsAPI } from '@/lib/api'
 
+import { useSiteSettings, invalidateSettingsCache } from '@/lib/useSiteSettings'
+
+// NOTE: Field is defined OUTSIDE the page component on purpose.
+// Defining it inside would recreate it on every keystroke, remounting
+// the <input> and stealing focus (cursor disappears after each character).
+function Field({ label, k, value, onChange, type = 'text', placeholder = '' }: {
+  label: string, k: string, value: any,
+  onChange: (k: string, v: string) => void,
+  type?: string, placeholder?: string
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-[#3D4A63] mb-1">
+        {label}
+      </label>
+      <input
+        type={type}
+        value={value ?? ''}
+        onChange={e => onChange(k, e.target.value)}
+        placeholder={placeholder}
+        className="w-full px-4 py-3 rounded-xl border border-[#EEF1F6]
+          text-sm focus:outline-none focus:border-[#1A4A8A]
+          bg-[#F8F9FC] transition-all"
+      />
+    </div>
+  )
+}
+
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState({
     siteName: 'Waziristan Youth Welfare Association',
@@ -46,10 +74,16 @@ export default function AdminSettingsPage() {
     fetchSettings()
   }, [])
 
+  const handleFieldChange = (k: string, v: string) => {
+    setSettings(prev => ({ ...prev, [k]: v }))
+  }
+
   const handleSave = async () => {
     setSaving(true)
     try {
       await settingsAPI.update(settings)
+      // Clear the public-site settings cache so the new values show immediately
+      invalidateSettingsCache()
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (err: any) {
@@ -66,25 +100,6 @@ export default function AdminSettingsPage() {
       </div>
     )
   }
-
-  const Field = ({ label, k, type = 'text', placeholder = '' }: {
-    label: string, k: string, type?: string, placeholder?: string
-  }) => (
-    <div>
-      <label className="block text-xs font-medium text-[#3D4A63] mb-1">
-        {label}
-      </label>
-      <input
-        type={type}
-        value={(settings as any)[k]}
-        onChange={e => setSettings({ ...settings, [k]: e.target.value })}
-        placeholder={placeholder}
-        className="w-full px-4 py-3 rounded-xl border border-[#EEF1F6]
-          text-sm focus:outline-none focus:border-[#1A4A8A]
-          bg-[#F8F9FC] transition-all"
-      />
-    </div>
-  )
 
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
@@ -105,10 +120,10 @@ export default function AdminSettingsPage() {
           General Information
         </h2>
         <div className="grid md:grid-cols-2 gap-4">
-          <Field label="Organization Name" k="siteName" />
-          <Field label="Short Name" k="shortName" />
+          <Field label="Organization Name" k="siteName" value={(settings as any).siteName} onChange={handleFieldChange} />
+          <Field label="Short Name" k="shortName" value={(settings as any).shortName} onChange={handleFieldChange} />
           <div className="md:col-span-2">
-            <Field label="Tagline / Slogan" k="tagline" />
+            <Field label="Tagline / Slogan" k="tagline" value={(settings as any).tagline} onChange={handleFieldChange} />
           </div>
         </div>
       </div>
@@ -120,11 +135,11 @@ export default function AdminSettingsPage() {
           Homepage Content
         </h2>
         <div className="grid md:grid-cols-2 gap-4">
-          <Field label="Hero Tagline" k="heroTagline" />
-          <Field label="Hero Badge Line" k="estLine"
+          <Field label="Hero Tagline" k="heroTagline" value={(settings as any).heroTagline} onChange={handleFieldChange} />
+          <Field label="Hero Badge Line" k="estLine" value={(settings as any).estLine} onChange={handleFieldChange}
             placeholder="e.g. Est. 2010 · Waziristan, Pakistan" />
           <div className="md:col-span-2">
-            <Field label="Hero Description" k="heroDescription" />
+            <Field label="Hero Description" k="heroDescription" value={(settings as any).heroDescription} onChange={handleFieldChange} />
           </div>
         </div>
       </div>
@@ -136,11 +151,11 @@ export default function AdminSettingsPage() {
           Contact Information
         </h2>
         <div className="grid md:grid-cols-2 gap-4">
-          <Field label="Email Address" k="email" type="email" />
-          <Field label="Phone Number" k="phone" />
-          <Field label="WhatsApp Number" k="whatsapp" />
+          <Field label="Email Address" k="email" value={(settings as any).email} onChange={handleFieldChange} type="email" />
+          <Field label="Phone Number" k="phone" value={(settings as any).phone} onChange={handleFieldChange} />
+          <Field label="WhatsApp Number" k="whatsapp" value={(settings as any).whatsapp} onChange={handleFieldChange} />
           <div className="md:col-span-2">
-            <Field label="Office Address" k="address" />
+            <Field label="Office Address" k="address" value={(settings as any).address} onChange={handleFieldChange} />
           </div>
         </div>
       </div>
@@ -152,13 +167,13 @@ export default function AdminSettingsPage() {
           Social Media Links
         </h2>
         <div className="grid md:grid-cols-2 gap-4">
-          <Field label="Facebook Page URL" k="facebook"
+          <Field label="Facebook Page URL" k="facebook" value={(settings as any).facebook} onChange={handleFieldChange}
             placeholder="https://facebook.com/wywa" />
-          <Field label="Twitter / X URL" k="twitter"
+          <Field label="Twitter / X URL" k="twitter" value={(settings as any).twitter} onChange={handleFieldChange}
             placeholder="https://twitter.com/wywa" />
-          <Field label="Instagram URL" k="instagram"
+          <Field label="Instagram URL" k="instagram" value={(settings as any).instagram} onChange={handleFieldChange}
             placeholder="https://instagram.com/wywa" />
-          <Field label="YouTube Channel URL" k="youtube"
+          <Field label="YouTube Channel URL" k="youtube" value={(settings as any).youtube} onChange={handleFieldChange}
             placeholder="https://youtube.com/@wywa" />
         </div>
       </div>
@@ -190,15 +205,15 @@ export default function AdminSettingsPage() {
           Payment / Donation Details
         </h2>
         <div className="grid md:grid-cols-2 gap-4">
-          <Field label="Bank Name" k="bankName" />
-          <Field label="Account Title" k="accountTitle" />
-          <Field label="Account Number" k="accountNumber"
+          <Field label="Bank Name" k="bankName" value={(settings as any).bankName} onChange={handleFieldChange} />
+          <Field label="Account Title" k="accountTitle" value={(settings as any).accountTitle} onChange={handleFieldChange} />
+          <Field label="Account Number" k="accountNumber" value={(settings as any).accountNumber} onChange={handleFieldChange}
             placeholder="e.g. 0123-4567890-03" />
-          <Field label="IBAN" k="iban"
+          <Field label="IBAN" k="iban" value={(settings as any).iban} onChange={handleFieldChange}
             placeholder="e.g. PK36HABB..." />
-          <Field label="JazzCash Number" k="jazzcash"
+          <Field label="JazzCash Number" k="jazzcash" value={(settings as any).jazzcash} onChange={handleFieldChange}
             placeholder="e.g. 0300-1234567" />
-          <Field label="EasyPaisa Number" k="easypaisa"
+          <Field label="EasyPaisa Number" k="easypaisa" value={(settings as any).easypaisa} onChange={handleFieldChange}
             placeholder="e.g. 0312-7654321" />
         </div>
       </div>
