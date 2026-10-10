@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { donationsAPI } from '@/lib/api'
+import { useSiteSettings } from '@/lib/useSiteSettings'
 
 const amounts = [500, 1000, 2500, 5000, 10000, 25000]
 const campaigns = [
@@ -12,20 +13,53 @@ const campaigns = [
 ]
 
 export default function DonatePage() {
+  const { settings } = useSiteSettings()
   const [name, setName]           = useState('')
   const [email, setEmail]         = useState('')
+  const [phone, setPhone]         = useState('')
   const [amount, setAmount]       = useState(1000)
   const [custom, setCustom]       = useState('')
   const [campaign, setCampaign]   = useState('General Fund')
+  const [payMethod, setPayMethod] = useState('')
+  const [txnId, setTxnId]         = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState('')
 
   const finalAmount = custom ? parseInt(custom) : amount
 
+  // Build list of available payment accounts from settings
+  const accounts: { id: string; label: string; icon: string; details: string[] }[] = []
+  if (settings?.jazzcash) {
+    accounts.push({
+      id: 'JAZZCASH', label: 'JazzCash', icon: '📱',
+      details: [`Number: ${settings.jazzcash}`, `Title: ${settings.accountTitle || 'WYWA'}`],
+    })
+  }
+  if (settings?.easypaisa) {
+    accounts.push({
+      id: 'EASYPAISA', label: 'EasyPaisa', icon: '📱',
+      details: [`Number: ${settings.easypaisa}`, `Title: ${settings.accountTitle || 'WYWA'}`],
+    })
+  }
+  if (settings?.accountNumber) {
+    const bankDetails = [`Title: ${settings.accountTitle || 'WYWA'}`, `Account: ${settings.accountNumber}`]
+    if (settings?.iban) bankDetails.push(`IBAN: ${settings.iban}`)
+    if (settings?.bankName) bankDetails.unshift(`Bank: ${settings.bankName}`)
+    accounts.push({ id: 'BANK_TRANSFER', label: 'Bank Transfer', icon: '🏦', details: bankDetails })
+  }
+
   const handleDonate = async () => {
     if (!name || !email) {
-      alert('Please enter your name and email')
+      setError('Please enter your name and email')
+      return
+    }
+    if (!payMethod) {
+      setError('Please select the payment method you used')
+      return
+    }
+    if (!txnId.trim()) {
+      setError('Please enter the Transaction ID from your payment receipt')
       return
     }
     setLoading(true)
@@ -34,9 +68,12 @@ export default function DonatePage() {
       await donationsAPI.initiate({
         donorName: name,
         email,
+        phone,
         amount: finalAmount,
         campaign,
         currency: 'PKR',
+        paymentMethod: payMethod,
+        paymentRef: txnId.trim(),
       })
       setSubmitted(true)
     } catch (err: any) {
@@ -77,15 +114,17 @@ export default function DonatePage() {
               <div className="lg:col-span-2 bg-white rounded-2xl p-10 shadow-sm">
                 {submitted ? (
                   <div className="text-center py-12">
-                    <div className="text-6xl mb-6">🎉</div>
+                    <div className="text-6xl mb-6">🙏</div>
                     <h3 className="text-2xl font-bold text-[#0A1628] mb-3"
                       style={{ fontFamily: 'Playfair Display, serif' }}>
-                      Thank You for Your Generosity!
+                      Thank You! Your Donation is Under Review
                     </h3>
-                    <p className="text-[#6B7A99]">
-                      Your donation of PKR {finalAmount.toLocaleString()} to{' '}
-                      {campaign} has been received. A receipt will be
-                      sent to your email shortly.
+                    <p className="text-[#6B7A99] max-w-md mx-auto">
+                      We received your donation details of{' '}
+                      <strong>PKR {finalAmount.toLocaleString()}</strong> for{' '}
+                      {campaign}. Our team will verify your transaction{' '}
+                      (Ref: {txnId}) and confirm it shortly. A receipt will be
+                      sent to your email.
                     </p>
                   </div>
                 ) : (
@@ -105,6 +144,10 @@ export default function DonatePage() {
                         <label className="block text-sm font-semibold text-[#0A1628] mb-2">Email *</label>
                         <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" className="w-full px-4 py-3 rounded-xl border-2 border-[#EEF1F6] text-sm focus:outline-none focus:border-[#1A4A8A] transition-all" />
                       </div>
+                    </div>
+                    <div className="mb-6">
+                      <label className="block text-sm font-semibold text-[#0A1628] mb-2">Phone (optional)</label>
+                      <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="03XX-XXXXXXX" className="w-full px-4 py-3 rounded-xl border-2 border-[#EEF1F6] text-sm focus:outline-none focus:border-[#1A4A8A] transition-all" />
                     </div>
 
                     {/* Amount */}
@@ -159,27 +202,59 @@ export default function DonatePage() {
                       </div>
                     </div>
 
-                    {/* Payment Method */}
+                    {/* Payment Accounts (dynamic from settings) */}
+                    <div className="mb-6">
+                      <label className="block text-sm font-semibold
+                        text-[#0A1628] mb-3">
+                        Step 1 — Send PKR {finalAmount.toLocaleString()} to any account below
+                      </label>
+                      {accounts.length === 0 ? (
+                        <p className="text-sm text-[#6B7A99] bg-[#F8F9FC] rounded-xl px-4 py-3">
+                          Payment accounts are being set up. Please check back soon or contact us directly.
+                        </p>
+                      ) : (
+                        <div className="flex flex-col gap-3">
+                          {accounts.map(acc => (
+                            <button key={acc.id}
+                              onClick={() => setPayMethod(acc.id)}
+                              className={`text-left rounded-xl border-2 p-4 transition-all
+                                ${payMethod === acc.id
+                                  ? 'border-[#1A4A8A] bg-[#1A4A8A]/5'
+                                  : 'border-[#EEF1F6] hover:border-[#1A4A8A]'
+                                }`}>
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-lg">{acc.icon}</span>
+                                <span className="font-semibold text-sm text-[#0A1628]">{acc.label}</span>
+                                {payMethod === acc.id && (
+                                  <span className="ml-auto text-[#1A4A8A] text-sm">✓</span>
+                                )}
+                              </div>
+                              {acc.details.map((d, i) => (
+                                <p key={i} className="text-xs text-[#3D4A63] font-mono ml-8">{d}</p>
+                              ))}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Transaction ID */}
                     <div className="mb-8">
                       <label className="block text-sm font-semibold
                         text-[#0A1628] mb-3">
-                        Payment Method
+                        Step 2 — Enter Transaction ID (TID) from your receipt *
                       </label>
-                      <div className="grid grid-cols-3 gap-3">
-                        {[
-                          { label: '🏦 Bank Transfer' },
-                          { label: '📱 JazzCash' },
-                          { label: '📱 EasyPaisa' },
-                        ].map(m => (
-                          <button key={m.label}
-                            className="py-3 rounded-xl border-2
-                              border-[#EEF1F6] text-xs font-medium
-                              text-[#3D4A63] hover:border-[#1A4A8A]
-                              transition-all">
-                            {m.label}
-                          </button>
-                        ))}
-                      </div>
+                      <input
+                        value={txnId}
+                        onChange={e => setTxnId(e.target.value)}
+                        placeholder="e.g. 12345678901"
+                        className="w-full px-4 py-3 rounded-xl border-2
+                          border-[#EEF1F6] text-sm font-mono focus:outline-none
+                          focus:border-[#1A4A8A] transition-all" />
+                      <p className="text-xs text-[#6B7A99] mt-2">
+                        After sending the amount, you will receive a Transaction ID via SMS.
+                        Enter it here so we can verify your donation.
+                      </p>
                     </div>
 
                     {error && (
@@ -194,7 +269,7 @@ export default function DonatePage() {
                         text-[#0A1628] py-4 rounded-xl font-bold text-base
                         transition-all duration-200 hover:-translate-y-0.5
                         hover:shadow-lg disabled:opacity-70">
-                      {loading ? 'Processing...' : `Donate PKR ${finalAmount.toLocaleString()} →`}
+                      {loading ? 'Submitting...' : `Submit Donation PKR ${finalAmount.toLocaleString()} →`}
                     </button>
                   </>
                 )}
@@ -228,10 +303,10 @@ export default function DonatePage() {
                 <div className="bg-[#0A1628] rounded-2xl p-6 text-center">
                   <div className="text-3xl mb-3">🔒</div>
                   <p className="text-white font-semibold text-sm mb-2">
-                    100% Secure
+                    Manual Verification
                   </p>
                   <p className="text-white/50 text-xs">
-                    All donations are encrypted and securely processed.
+                    Every donation is manually verified by our team before confirmation.
                   </p>
                 </div>
               </div>

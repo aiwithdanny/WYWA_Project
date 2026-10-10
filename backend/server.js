@@ -643,9 +643,12 @@ app.delete('/api/volunteers/:id', protect, restrictTo('SUPER_ADMIN', 'EDITOR'), 
 // DONATIONS
 // ═══════════════════════════════════════════════════════════════
 app.post('/api/donations/initiate', async (req, res) => {
-  const { donorName, email, amount, campaign, currency, paymentMethod, message, isAnonymous } = req.body
+  const { donorName, email, amount, campaign, currency, paymentMethod, paymentRef, message, isAnonymous } = req.body
   if (!donorName || !email || !amount) {
     return res.status(400).json({ status: 'fail', message: 'Donor name, email and amount are required' })
+  }
+  if (!paymentRef || !String(paymentRef).trim()) {
+    return res.status(400).json({ status: 'fail', message: 'Transaction ID is required' })
   }
   const parsedAmount = parseFloat(amount)
   if (!isFinite(parsedAmount) || parsedAmount <= 0) {
@@ -663,7 +666,7 @@ app.post('/api/donations/initiate', async (req, res) => {
       campaign: campaign || 'General Fund',
       paymentMethod: paymentMethod || 'BANK_TRANSFER',
       status: 'PENDING',
-      paymentRef: `WYWA-${Date.now()}`,
+      paymentRef: String(paymentRef).trim(),
       message: message || '',
       isAnonymous: !!isAnonymous,
       receiptSent: false,

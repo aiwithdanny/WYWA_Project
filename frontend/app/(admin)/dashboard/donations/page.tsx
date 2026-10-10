@@ -101,7 +101,7 @@ export default function AdminDonationsPage() {
         <table className="w-full">
           <thead>
             <tr className="bg-[#0A1628] text-white">
-              {['Donor', 'Amount', 'Campaign', 'Method', 'Status', 'Date', 'Actions'].map(h => (
+              {['Donor', 'Amount', 'Campaign', 'Method', 'Txn ID', 'Status', 'Date', 'Actions'].map(h => (
                 <th key={h} className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider">{h}</th>
               ))}
             </tr>
@@ -116,6 +116,7 @@ export default function AdminDonationsPage() {
                 <td className="px-6 py-4 text-sm font-semibold text-[#2da86a]">PKR {donation.amount?.toLocaleString()}</td>
                 <td className="px-6 py-4 text-sm text-[#6B7A99]">{donation.campaign}</td>
                 <td className="px-6 py-4 text-xs text-[#6B7A99]">{donation.paymentMethod}</td>
+                <td className="px-6 py-4 text-xs font-mono text-[#0A1628]">{donation.paymentRef || '—'}</td>
                 <td className="px-6 py-4">
                   <select value={donation.status} onChange={e => handleStatusChange(donation.id, e.target.value)}
                     className={`text-xs font-semibold px-3 py-1 rounded-full border-0 cursor-pointer ${
