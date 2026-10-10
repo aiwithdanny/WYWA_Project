@@ -13,7 +13,7 @@ const campaigns = [
 ]
 
 export default function DonatePage() {
-  const { settings } = useSiteSettings()
+  const settings = useSiteSettings()
   const [name, setName]           = useState('')
   const [email, setEmail]         = useState('')
   const [phone, setPhone]         = useState('')
